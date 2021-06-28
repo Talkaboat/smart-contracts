@@ -2,6 +2,7 @@
 
 pragma solidity >=0.7.0 <0.9.0;
 
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -15,7 +16,6 @@ import "./libraries/TransferHelper.sol";
 
 contract MasterEntertainer is Ownable, ReentrancyGuard {
     using SafeMath for uint256;
-    using SafeMath for int256;
     using SafeERC20 for IERC20;
     using Address for address;    
     
@@ -129,6 +129,12 @@ contract MasterEntertainer is Ownable, ReentrancyGuard {
         emit UpdateEmissionRate(msg.sender, _coinPerBlock);
     }
     
+    function updateEmissionRateInternal(uint256 _coinPerBlock) internal {
+        massUpdatePools();
+        coinPerBlock = _coinPerBlock;
+        emit UpdateEmissionRate(address(this), _coinPerBlock);
+    }
+    
     function setMaxEmissionIncrease(uint16 _maxEmissionIncrease) public onlyOwner {
         maxEmissionIncrease = _maxEmissionIncrease;
         emit SetMaxEmissionIncrease(msg.sender, _maxEmissionIncrease);
@@ -151,11 +157,10 @@ contract MasterEntertainer is Ownable, ReentrancyGuard {
         if(res0 == 0 && res1 == 0) {
             return 0;
         }
-        uint256 mainRes = address(pair.token0()) == address(coin) ? res0 : res1;
+        ERC20 tokenB = address(pair.token0()) == address(coin) ? ERC20(pair.token1()) : ERC20(pair.token1());
+        uint256 mainRes = address(pair.token0()) == address(coin) ? res1 : res0;
         uint256 secondaryRes = mainRes == res0 ? res1: res0;
-        uint256 decimals = coin.decimals();
-        return (mainRes * (10 ** decimals)) / secondaryRes;
-        
+        return (mainRes * (10 ** tokenB.decimals())) / secondaryRes;
     }
     
     function getAveragePrice() public view returns (uint256) {
@@ -314,6 +319,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard {
             emit Claim(msg.sender, _pid, pending);
         }
         user.rewardDebt = user.amount.mul(pool.accCoinPerShare).div(1e12);
+        checkPriceUpdate();
     }
     
     // Withdraw without caring about rewards.
@@ -348,7 +354,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard {
         uint256 newEmissionRate = getNewEmissionRate(percentageDifference, updatedPrice > lastAveragePrice);
         lastEmissionIncrease = percentageDifference;
         lastAveragePrice = updatedPrice;
-        updateEmissionRate(newEmissionRate);
+        updateEmissionRateInternal(newEmissionRate);
     }
     
     function checkPriceUpdate() public {

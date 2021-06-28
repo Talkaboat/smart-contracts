@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
+
 pragma solidity >=0.7.0 <0.9.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -130,7 +131,7 @@ contract TalkaboatToken is ERC20, Ownable, ReentrancyGuard {
          setMaintainer(msg.sender);
          excludeFromAll(_devWallet);
          excludeFromAll(_donationWallet);
-         mint(msg.sender, 300000000000 ether);
+         mint(msg.sender, 500000000000 ether);  
          updateRouter(0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3);
     }
     
@@ -353,7 +354,7 @@ contract TalkaboatToken is ERC20, Ownable, ReentrancyGuard {
     }
     
     function canMintNewCoins(uint256 _amount) public view returns (bool) {
-        return totalSupply() + _amount < maxDistribution;
+        return totalSupply() + _amount <= maxDistribution;
     }
     
     /* =====================================================================================================================
@@ -370,7 +371,7 @@ contract TalkaboatToken is ERC20, Ownable, ReentrancyGuard {
     
      /// @notice Creates `_amount` token to `_to`. Must only be called by the owner.
     function mint(address _to, uint256 _amount) public onlyOwner {
-        require(totalSupply() + _amount < maxDistribution, "mint: Can't mint more talkaboat token than maxDistribution allows");
+        require(canMintNewCoins(_amount), "mint: Can't mint more talkaboat token than maxDistribution allows");
         _mint(_to, _amount);
     }
     
