@@ -309,7 +309,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard {
         checkPriceUpdate();
     }
     
-    function claim(uint256 _pid) public {
+    function claim(uint256 _pid) public nonReentrant {
         PoolInfo storage pool = poolInfos[_pid];
         UserInfo storage user = userInfos[_pid][msg.sender];
         updatePool(_pid);
