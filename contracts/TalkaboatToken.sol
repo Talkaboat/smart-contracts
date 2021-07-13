@@ -57,7 +57,8 @@ contract TalkaboatToken is ERC20, Ownable, ReentrancyGuard {
     
     address private _devWallet = 0x2EA9CA0ca8043575f2189CFF9897B575b0c7e857;          //Wallet where the dev fees will go to
     address private _donationWallet = 0xDBdbb811bd567C1a2Ac50159b46583Caa494d055;     //Wallet where donation fees will go to
-    
+    address private _rewardWallet = 0x2EA9CA0ca8043575f2189CFF9897B575b0c7e857;     //Wallet where rewards will be distributed
+
     address private _liquidityPair;
     
     mapping(address => bool) private _excludedFromMaxTransfer;
@@ -138,7 +139,6 @@ contract TalkaboatToken is ERC20, Ownable, ReentrancyGuard {
     /* =====================================================================================================================
                                                         Set Functions
     ===================================================================================================================== */
-    
     function setMasterEntertainer(address _newMasterEntertainer) public onlyMaintainerOrOwner {
         require(_newMasterEntertainer != address(_masterEntertainer) && _newMasterEntertainer != address(0), 'TAB::setMasterEntertainer: Master entertainer can\'t equal previous master entertainer or zero address');
         address previousEntertainer = address(_masterEntertainer);
@@ -153,6 +153,27 @@ contract TalkaboatToken is ERC20, Ownable, ReentrancyGuard {
         _maintainer = _newMaintainer;
         excludeFromAll(_newMaintainer);
         emit MaintainerTransferred(previousMaintainer, _maintainer);
+    }
+
+    function setDevWallet(address newWallet) public onlyMaintainerOrOwner {
+        require(newWallet != _devWallet && newWallet != address(0), 'TAB::setDevWallet: New wallet can\'t equal previous wallet or zero address');
+        address previousWallet = _devWallet;
+        _devWallet = newWallet;
+        excludeFromAll(newWallet);
+    }
+
+    function setRewardWallet(address newWallet) public onlyMaintainerOrOwner {
+        require(newWallet != _rewardWallet && newWallet != address(0), 'TAB::setDevWallet: New wallet can\'t equal previous wallet or zero address');
+        address previousWallet = _rewardWallet;
+        _rewardWallet = newWallet;
+        excludeFromAll(newWallet);
+    }
+
+    function setDonationWallet(address newWallet) public onlyMaintainerOrOwner {
+        require(newWallet != _donationWallet && newWallet != address(0), 'TAB::setDevWallet: New wallet can\'t equal previous wallet or zero address');
+        address previousWallet = _donationWallet;
+        _donationWallet = newWallet;
+        excludeFromAll(newWallet);
     }
     
     function setMaxDistribution(uint256 _newDistribution) public onlyMaintainerOrOwner {
@@ -421,11 +442,11 @@ contract TalkaboatToken is ERC20, Ownable, ReentrancyGuard {
             require(taxAmount == reDistributionAmount + liquidityAmount + devAmount + donationAmount, "TAB::transfer: Fee amount does not equal the split fee amount");
             uint256 sendAmount = amount.sub(taxAmount);
             require(amount == sendAmount + taxAmount, "TAB::transfer: amount to send with tax amount exceeds maximum possible amount");
-            super._transfer(sender, address(_masterEntertainer), reDistributionAmount);
             super._transfer(sender, address(this), liquidityAmount);
             super._transfer(sender, recipient, sendAmount);
             super._transfer(sender, _devWallet, devAmount);
             super._transfer(sender, _donationWallet, donationAmount);
+            super._transfer(sender, _rewardWallet, reDistributionAmount);
             amount = sendAmount;
             totalFeesPaid += taxAmount;
             devFeesPaid += devAmount;
