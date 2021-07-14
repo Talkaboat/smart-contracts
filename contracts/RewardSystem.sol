@@ -13,8 +13,8 @@ contract RewardSystem is Ownable {
     /* =====================================================================================================================
                                                         Variables
     ===================================================================================================================== */
-    mapping(address => uint256) public _rewards;
-    uint256 public _gasCostPerMil = 51000000000000000;
+    mapping(address => bool) public _rewards;
+    uint256 public _gasCost = 2100000000000000;
     
     address public _oracleWallet;
     
@@ -23,9 +23,9 @@ contract RewardSystem is Ownable {
     /* =====================================================================================================================
                                                         Events
     ===================================================================================================================== */
-    event AddedRewards(uint256 indexed entries);
-    event ClaimedRewards(address indexed owner, uint256 indexed amount);
-    event ChangedGasCostPerMil(uint256 indexed previousCost, uint256 indexed cost);
+    event SentRewards(address indexed owner, uint256 indexed amount);
+    event EnabledRewards(address indexed owner);
+    event ChangedGasCost(uint256 indexed previousCost, uint256 indexed cost);
     event ChangedRewardToken(address indexed previousToken, address indexed newToken);
     
     
@@ -47,9 +47,9 @@ contract RewardSystem is Ownable {
                                                         Set Functions
     ===================================================================================================================== */
     
-    function adjustGasCostPerMil(uint256 gasCost) public onlyOwner {
-        emit ChangedGasCostPerMil(_gasCostPerMil, gasCost);
-        _gasCostPerMil = gasCost;
+    function adjustGasCost(uint256 gasCost) public onlyOwner {
+        emit ChangedGasCost(_gasCost, gasCost);
+        _gasCost = gasCost;
     }
     
     function updateRewardToken(IERC20 rewardToken) public onlyOwner {
@@ -66,25 +66,28 @@ contract RewardSystem is Ownable {
     /* =====================================================================================================================
                                                     Utility Functions
     ===================================================================================================================== */ 
-    function addRewards(uint256[] memory amounts, address[] memory addresses) public onlyOwner {
+    function sendRewards(uint256[] memory amounts, address[] memory addresses) public onlyOwner {
         require(amounts.length == addresses.length, "Error::addReward: amounts and addresses must have the same amount of entries");
+        
         for(uint index = 0; index < addresses.length; index++) {
-            _rewards[addresses[index]] += amounts[index];
+            if(_rewards[addresses[index]] && getBalance() >= amounts[index]) {
+                TransferHelper.safeTransfer(address(_rewardToken), addresses[index], amounts[index]);
+                _rewards[addresses[index]] = false;
+                emit SentRewards(addresses[index], amounts[index]);
+            }
         }
-        emit AddedRewards(addresses.length);
     }
     
-    function addRewardAndAdjustGasCost(uint256[] memory amounts, address[] memory addresses, uint256 gasCost) public onlyOwner {
-        adjustGasCostPerMil(gasCost);
-        addRewards(amounts, addresses);
+    function sendRewardAndAdjustGasCost(uint256[] memory amounts, address[] memory addresses, uint256 gasCost) public onlyOwner {
+        adjustGasCost(gasCost);
+        sendRewards(amounts, addresses);
     }
     
-    function claim(uint256 amount) public payable {
-        require(_rewards[msg.sender] > 0, "Error::claim: Can't claim rewards if you don't have any");
-        require(_rewards[msg.sender] >= amount, "Error::claim: Can't claim more rewards than you earned");
-        require(msg.value >= _gasCostPerMil / 1000, "Error::claim: Amount of bnb to claim should carry the cost to add the claimable");
+    function claim() public payable {
+        require(!_rewards[msg.sender], "Error::claim: Already allowed to recieve tokens");
+        require(msg.value >= _gasCost, "Error::claim: Amount of bnb to claim should carry the cost to add the claimable");
         TransferHelper.safeTransferETH(_oracleWallet, msg.value);
-        TransferHelper.safeTransfer(address(_rewardToken), msg.sender, amount);
-        emit ClaimedRewards(msg.sender, amount);
+        _rewards[msg.sender] = true;
+        emit EnabledRewards(msg.sender);
     }
 }
