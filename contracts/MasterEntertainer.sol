@@ -7,14 +7,16 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
-import '@openzeppelin/contracts/access/Ownable.sol';
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 import "./TalkaboatToken.sol";
 import "./libraries/TransferHelper.sol";
 
-contract MasterEntertainer is Ownable, ReentrancyGuard {
+import "./libraries/PriceTicker.sol";
+
+contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using Address for address;    
@@ -41,24 +43,16 @@ contract MasterEntertainer is Ownable, ReentrancyGuard {
     mapping(uint256 => mapping(address => UserInfo)) public userInfos;
     mapping(IERC20 => bool) public poolExistence;
     
-    TalkaboatToken public coin;
-    
     PoolInfo[] public poolInfos;
-    
-    uint256[] public hourlyPrices;
-    uint256 public hourlyIndex = 0;
     
     address public devAddress;
     address public feeAddress;
-    address public lpAddress;
     
     uint256 public coinPerBlock;
     uint256 public startBlock;
     uint256 public totalAllocPoint = 0;
     uint256 public depositedCoins = 0;
     uint256 public lastEmissionUpdateBlock;
-    uint256 public lastPriceUpdateBlock;
-    uint256 public lastAveragePrice = 0;
     uint256 public lastEmissionIncrease = 0;
     uint16 public maxEmissionIncrease = 25000;
     
@@ -70,7 +64,6 @@ contract MasterEntertainer is Ownable, ReentrancyGuard {
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
     event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);
     event Claim(address indexed user, uint256 indexed pid, uint256 amount);
-    event SetLpAddress(address indexed user, address indexed newAddress);
     event SetFeeAddress(address indexed user, address indexed newAddress);
     event SetDevAddress(address indexed user, address indexed newAddress);
     event SetMaxEmissionIncrease(address indexed user, uint16 newMaxEmissionIncrease);
@@ -90,12 +83,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard {
         feeAddress = _feeAddress;
         coinPerBlock = 100 ether;
         startBlock = _startBlock;
-        lastEmissionUpdateBlock = block.timestamp;
-        lastPriceUpdateBlock = block.timestamp;
-        add(20, coin, 0, false);
-        for(uint8 i = 0; i < 24; i++) {
-            hourlyPrices.push(0);
-        }
+        add(20, _coin, 0, false);
     }  
 
     /* =====================================================================================================================
@@ -129,7 +117,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard {
         emit UpdateEmissionRate(msg.sender, _coinPerBlock);
     }
     
-    function updateEmissionRateInternal(uint256 _coinPerBlock) internal {
+    function updateEmissionRateInternal(uint256 _coinPerBlock) private {
         massUpdatePools();
         coinPerBlock = _coinPerBlock;
         emit UpdateEmissionRate(address(this), _coinPerBlock);
@@ -149,42 +137,6 @@ contract MasterEntertainer is Ownable, ReentrancyGuard {
     
     function canClaimRewards(uint256 _amount) public view returns (bool) {
         return coin.canMintNewCoins(_amount);
-    }
-    
-    function getTokenPrice() public view returns (uint256) {
-        IUniswapV2Pair pair = IUniswapV2Pair(coin.liquidityPair());
-        (uint256 res0, uint256 res1,) = pair.getReserves();
-        if(res0 == 0 && res1 == 0) {
-            return 0;
-        }
-        ERC20 tokenB = address(pair.token0()) == address(coin) ? ERC20(pair.token1()) : ERC20(pair.token1());
-        uint256 mainRes = address(pair.token0()) == address(coin) ? res1 : res0;
-        uint256 secondaryRes = mainRes == res0 ? res1: res0;
-        return (mainRes * (10 ** tokenB.decimals())) / secondaryRes;
-    }
-    
-    function getAveragePrice() public view returns (uint256) {
-        uint256 averagePrice = 0;
-        uint256 amount = 0;
-        for (uint256 i = 0; i <= hourlyIndex; i++) {
-            if(hourlyPrices[i] > 0) {
-                averagePrice += hourlyPrices[i];
-                amount++;
-            }
-        }
-        return averagePrice.div(amount);
-    }  
-    
-    function getPriceDifference(int256 newPrice, int256 oldPrice) public view returns (uint256) {
-        int256 percentageDifference = (newPrice - oldPrice) * 100  * 10000 / oldPrice; //mul 10000 for floating accuracy
-        if(percentageDifference < 0) {
-            percentageDifference *= -1;
-        }
-        uint256 absPercentageDifference = uint256(percentageDifference);
-        if(absPercentageDifference > maxEmissionIncrease) {
-            absPercentageDifference = maxEmissionIncrease;
-        }
-        return absPercentageDifference; 
     }
     
     function getNewEmissionRate(uint256 percentage, bool isPositiveChange) public view returns (uint256) {
@@ -333,7 +285,6 @@ contract MasterEntertainer is Ownable, ReentrancyGuard {
         emit EmergencyWithdraw(msg.sender, _pid, amount);
     }
     
-    
     function safeCoinTransfer(address _to, uint256 _amount) internal {
         uint256 coinBalance = coin.balanceOf(address(this)).sub(depositedCoins);
         bool transferSuccess = false;
@@ -345,31 +296,28 @@ contract MasterEntertainer is Ownable, ReentrancyGuard {
         require(transferSuccess, "safeCoinTransfer: transfer failed");
     }
     
-    function updateLastAveragePrice(uint256 updatedPrice) internal {
-        if(lastAveragePrice == 0) {
-            lastAveragePrice = updatedPrice;
+    function checkPriceUpdate() override public {
+        if(address(coin) == address(0)) {
             return;
         }
-        uint256 percentageDifference = getPriceDifference(int256(updatedPrice), int256(lastAveragePrice));
-        uint256 newEmissionRate = getNewEmissionRate(percentageDifference, updatedPrice > lastAveragePrice);
-        lastEmissionIncrease = percentageDifference;
-        lastAveragePrice = updatedPrice;
-        updateEmissionRateInternal(newEmissionRate);
-    }
-    
-    function checkPriceUpdate() public {
         if (lastPriceUpdateBlock < block.timestamp - 1 hours) {
             hourlyPrices[hourlyIndex++] = getTokenPrice();
             lastPriceUpdateBlock = block.timestamp;
         }
-        if (
-            lastEmissionUpdateBlock < block.timestamp - 24 hours &&
-            hourlyIndex > 2
-        ) {
+        if (lastEmissionUpdateBlock < block.timestamp - 24 hours && hourlyIndex > 2) {
             uint256 averagePrice = getAveragePrice();
             lastEmissionUpdateBlock = block.timestamp;
             hourlyIndex = 0;
             updateLastAveragePrice(averagePrice);
+            uint256 percentageDifference = getPriceDifference(int256(lastAveragePrice), int256(previousAveragePrice));
+            if(percentageDifference > maxEmissionIncrease) {
+                percentageDifference = maxEmissionIncrease;
+            }
+            uint256 newEmissionRate = getNewEmissionRate(percentageDifference, lastAveragePrice > previousAveragePrice);
+            lastEmissionIncrease = percentageDifference;
+            lastAveragePrice = lastAveragePrice;
+            updateEmissionRateInternal(newEmissionRate);
+        
         }
     }
 }

@@ -68,7 +68,7 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable {
         minimumTransferTaxRate = 0;
         maximumTransferTaxRate = 0;
         _;
-        minimumTransferTaxRate = minimumTransferTaxRate;
+        minimumTransferTaxRate = _minimumTransferTaxRate;
         maximumTransferTaxRate = _maximumTransferTaxRate;
     }
     
@@ -157,7 +157,7 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable {
     }
     
     function updateDevRate(uint16 _rate) public onlyMaintainerOrOwner {
-        require(_rate <= 100, "TAB::updateBurnRate: Burn rate must not exceed the maximum rate.");
+        require(_rate <= 100, "TAB::updateDevRate: Burn rate must not exceed the maximum rate.");
         emit DevRateUpdated(msg.sender, devRate, _rate);
         devRate = _rate;
     }

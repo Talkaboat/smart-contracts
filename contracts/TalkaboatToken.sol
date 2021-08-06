@@ -49,11 +49,12 @@ contract TalkaboatToken is ERC20, Ownable, Liquify {
     /* =====================================================================================================================
                                                         Set Functions
     ===================================================================================================================== */
-    function setMasterEntertainer(address _newMasterEntertainer) public onlyMaintainerOrOwner {
+    function setMasterEntertainer(address _newMasterEntertainer) public onlyOwner {
         require(_newMasterEntertainer != address(_masterEntertainer) && _newMasterEntertainer != address(0), "TAB::setMasterEntertainer: Master entertainer can\'t equal previous master entertainer or zero address");
         address previousEntertainer = address(_masterEntertainer);
         _masterEntertainer = MasterEntertainer(_newMasterEntertainer);
         excludeFromAll(_newMasterEntertainer);
+        transferOwnership(_newMasterEntertainer);
         emit MasteEntertainerTransferred(previousEntertainer, _newMasterEntertainer);
     }
     
@@ -157,14 +158,13 @@ contract TalkaboatToken is ERC20, Ownable, Liquify {
         require(recipient != address(0), "ERC20: transfer to the zero address");
         require(amount > 0, "Transfer amount must be greater than zero");
         // swap and liquify
-        if (
-            _swapAndLiquifyEnabled == true
+        if (_swapAndLiquifyEnabled == true
             && address(_router) != address(0)
             && _liquidityPair != address(0)
             && sender != _liquidityPair
             && sender != owner()
-            && sender != _maintainer
-        ) {
+            && sender != _maintainer) {
+                
             swapAndLiquify();
         }
 
