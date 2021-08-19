@@ -32,6 +32,7 @@ abstract contract PriceTicker is Ownable {
                                                         Events
     ===================================================================================================================== */
     event ChangedCoin(address indexed previousCoin, address indexed newCoin);
+    event UpdatedAveragePrice(uint256 indexed previousAveragePrice, uint256 indexed newAveragePrice);
 
     constructor() {
         for(uint8 i = 0; i < 24; i++) {
@@ -50,6 +51,8 @@ abstract contract PriceTicker is Ownable {
         coin = _coin;
         lpAddress = coin.liquidityPair();
         hourlyIndex = 0;
+        lastAveragePrice = 0;
+        previousAveragePrice = 0;
         emit ChangedCoin(previousCoin, address(coin));
     }
         
@@ -85,6 +88,8 @@ abstract contract PriceTicker is Ownable {
         if(coinLpAddress != lpAddress) {
             lpAddress = coinLpAddress;
             hourlyIndex = 0;
+            lastAveragePrice = 0;
+            previousAveragePrice = 0;
         }
         IUniswapV2Pair pair = IUniswapV2Pair(lpAddress);
         (uint256 res0, uint256 res1,) = pair.getReserves();
@@ -98,12 +103,9 @@ abstract contract PriceTicker is Ownable {
     }
     
     function updateLastAveragePrice(uint256 updatedPrice) internal {
-        if(lastAveragePrice == 0) {
-            previousAveragePrice = lastAveragePrice;
-            lastAveragePrice = updatedPrice;
-            return;
-        }
-
+        previousAveragePrice = lastAveragePrice;
+        lastAveragePrice = updatedPrice;
+        emit UpdatedAveragePrice(previousAveragePrice, lastAveragePrice);
     }
     
     function checkPriceUpdate() virtual public  {

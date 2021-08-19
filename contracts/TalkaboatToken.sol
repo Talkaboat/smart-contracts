@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-
-pragma solidity >=0.7.0 <0.9.0;
+pragma solidity >=0.8.7 <0.9.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -14,13 +13,27 @@ import "./libraries/TransferHelper.sol";
 import "./libraries/Liquify.sol";
 import "./MasterEntertainer.sol";
 
-contract TalkaboatToken is ERC20, Ownable, Liquify {
+contract TalkaboatToken is ERC20, Liquify {
     using SafeMath for uint256;
     using Address for address;
+    
+    /* =====================================================================================================================
+                                                        Anti-Bot Helper
+    ===================================================================================================================== */
+    struct Transactions {
+        uint256 lastTransaction;
+        uint16 recurrentTransactions;
+    }
+    
     /* =====================================================================================================================
                                                         Variables
     ===================================================================================================================== */
     uint256 public maxDistribution = 1000000000000 ether;
+    
+    uint256 private releaseDate;
+    uint16 public maxTxQuantity = 100;
+    uint16 public maxRecurrentTransactions = 5;
+    uint256 public gasCost = 2100000000000000;
     
     uint public totalFeesPaid;
     uint public devFeesPaid;
@@ -31,25 +44,31 @@ contract TalkaboatToken is ERC20, Ownable, Liquify {
     //Master Entertainer contract
     MasterEntertainer public _masterEntertainer;
     
+    mapping(address => Transactions) private recurrentTransactions;
+    mapping(address => bool) private blacklisted;
+    mapping(address => bool) private requestedWhitelist;
     
     /* =====================================================================================================================
                                                         Events
     ===================================================================================================================== */
     event MasteEntertainerTransferred(address indexed previousMasterEntertainer, address indexed newMasterEntertainer);
     event MaxDistributionChanged(uint256 indexed newMaxDistribution);
+    event RequestedWhitelist(address indexed requestee);
     /* =====================================================================================================================
                                                         Modifier
     ===================================================================================================================== */
     
     
     constructor() ERC20("Talkaboat Token", "TAB") {
-         mint(msg.sender, 500000000000 ether);  
+        releaseDate = block.number;
+         mint(msg.sender, 500000000000 ether);
+         excludeFromAll(msg.sender);
     }
     
     /* =====================================================================================================================
                                                         Set Functions
     ===================================================================================================================== */
-    function setMasterEntertainer(address _newMasterEntertainer) public onlyOwner {
+    function setMasterEntertainer(address _newMasterEntertainer) public onlyMaintainerOrOwner locked("masterEntertainer") {
         require(_newMasterEntertainer != address(_masterEntertainer) && _newMasterEntertainer != address(0), "TAB::setMasterEntertainer: Master entertainer can\'t equal previous master entertainer or zero address");
         address previousEntertainer = address(_masterEntertainer);
         _masterEntertainer = MasterEntertainer(_newMasterEntertainer);
@@ -58,39 +77,45 @@ contract TalkaboatToken is ERC20, Ownable, Liquify {
         emit MasteEntertainerTransferred(previousEntertainer, _newMasterEntertainer);
     }
     
-    function setMaxDistribution(uint256 _newDistribution) public onlyMaintainerOrOwner {
-        require(_newDistribution > totalSupply(), "setMaxDistribution: Distribution can't be lower than the current total supply");
+    function setMaxDistribution(uint256 _newDistribution) public onlyMaintainerOrOwner locked("max_distribution") {
+        require(_newDistribution > totalSupply(), "TAB::setMaxDistribution: Distribution can't be lower than the current total supply");
         maxDistribution = _newDistribution;
         emit MaxDistributionChanged(_newDistribution);
+    }
+    
+    function setMaxRecurrentTransactions(uint16 amount) public onlyMaintainerOrOwner {
+        maxRecurrentTransactions = amount;
+    }
+    
+    function setMaxTransactionQuantity(uint16 quantity) public onlyMaintainerOrOwner {
+        maxTxQuantity = quantity;
+    }
+    
+    function setGasCost(uint256 cost) public onlyMaintainerOrOwner {
+        gasCost = cost;
     }
 
     
     /* =====================================================================================================================
                                                         Get Functions
     ===================================================================================================================== */
-    
-    function maintainer() public view returns (address) {
-        return _maintainer;
-    }
-  
-    /**
-     * @dev Returns the address is excluded from max transfer or not.
-     */
     function isExcludedFromSenderTax(address _account) public view returns (bool) {
         return _excludedFromFeesAsSender[_account];
     }
     
-    /**
-     * @dev Returns the address is excluded from max transfer or not.
-     */
     function isExcludedFromRecieverTax(address _account) public view returns (bool) {
         return _excludedFromFeesAsReciever[_account];
     }
     
-    /**
-     * @dev Returns the estimated tax Fee
-    */
+    function hasRequestedWhitelist(address user) public onlyMaintainerOrOwner view returns (bool) {
+        return requestedWhitelist[user];
+    }
+    
     function getTaxFee(address _sender) public view returns (uint256) {
+        //Anti-Bot: The first Blocks will have a 99% fee
+        if(block.number < releaseDate + 100) {
+            return 9900;
+        }
         uint balance = balanceOf(_sender);
         if(balance > totalSupply()) {
             return maximumTransferTaxRate;
@@ -118,9 +143,6 @@ contract TalkaboatToken is ERC20, Ownable, Liquify {
         return tokenA != address(this) ? tokenA : tokenB;
     }
     
-    /*
-    * @dev returns value of stored token balance from liquidity pair tokens (not address(this))
-    */
     function liquidityTokenBalance() public view returns (uint256) {
         return IERC20(getLiquidityTokenAddress()).balanceOf(address(this));
     }
@@ -133,17 +155,51 @@ contract TalkaboatToken is ERC20, Ownable, Liquify {
                                                     Utility Functions
     ===================================================================================================================== */
     
-    // To receive BNB from _router when swapping
     receive() external payable {}
+    
+    function setupLiquidity() public onlyMaintainerOrOwner {
+        require(releaseDate == 0, "TAB::setupLiquidity:Liquidity is already setup!");
+        releaseDate = block.number;
+    }
+    
+    function addTransaction(address sender) internal view returns (uint16) {
+        Transactions memory userTransactions = recurrentTransactions[sender];
+        if(userTransactions.lastTransaction + 5 minutes >= block.timestamp) {
+            userTransactions.recurrentTransactions += 1;
+        }
+        userTransactions.lastTransaction = block.timestamp;
+        return userTransactions.recurrentTransactions;
+    }
+    
+    function getTransactions(address user) public onlyMaintainerOrOwner view returns (Transactions memory ) {
+        return recurrentTransactions[user];
+    }
+    
+    function blacklist(address user) public onlyMaintainerOrOwner {
+        blacklisted[user] = true;
+    }
+    
+    function whitelist(address user) public onlyMaintainerOrOwner {
+        blacklisted[user] = true;
+        requestedWhitelist[user] = false;
+    }
+    
+    function requestWhitelist() public payable {
+        require(blacklisted[msg.sender], "TAB::requestWhitelist: You are not blacklisted!");
+        require(!requestedWhitelist[msg.sender], "TAB::requestWhitelist: You already requested whitelist!");
+        require(msg.value >= gasCost, "TAB::requestWhitelist: Amount of bnb to claim should carry the cost to add the claimable");
+        TransferHelper.safeTransferETH(_devWallet, msg.value);
+        requestedWhitelist[msg.sender] = true;
+        emit RequestedWhitelist(msg.sender);
+    }
     
     function claimExceedingLiquidityTokenBalance() public onlyMaintainerOrOwner {
         require(liquidityTokenBalance() > 0, "TAB::claimExceedingLiquidityTokenBalance: No exceeding balance");
         TransferHelper.safeTransferFrom(getLiquidityTokenAddress(), address(this), msg.sender, liquidityTokenBalance());
     }
     
-     /// @notice Creates `_amount` token to `_to`. Must only be called by the owner.
     function mint(address _to, uint256 _amount) public onlyOwner {
-        require(canMintNewCoins(_amount), "mint: Can't mint more talkaboat token than maxDistribution allows");
+        require(canMintNewCoins(_amount), "TAB::mint: Can't mint more talkaboat token than maxDistribution allows");
         _mint(_to, _amount);
     }
     
@@ -152,23 +208,31 @@ contract TalkaboatToken is ERC20, Ownable, Liquify {
         _burn(address(this), _amount);
     }
     
-        /// @dev overrides transfer function to meet tokenomics of talkaboat
     function _transfer(address sender, address recipient, uint256 amount) internal virtual override {
-        require(sender != address(0), "ERC20: transfer from the zero address");
-        require(recipient != address(0), "ERC20: transfer to the zero address");
-        require(amount > 0, "Transfer amount must be greater than zero");
-        // swap and liquify
-        if (_swapAndLiquifyEnabled == true
-            && address(_router) != address(0)
+        require(sender != address(0), "TAB::_transfer: transfer from the zero address");
+        require(recipient != address(0), "TAB::_transfer: transfer to the zero address");
+        require(amount > 0, "TAB::_transfer:Transfer amount must be greater than zero");
+        require(amount <= balanceOf(sender), "TAB::_transfer:Transfer amount must be lower or equal senders balance");
+        //Anti-Bot: If someone sends too many recurrent transactions in a short amount of time he will be blacklisted
+        require(!blacklisted[sender], "TAB::_transfer:You're currently blacklisted. Please report to service@talkaboat.online if you want to get removed from blacklist!");
+        //Anti-Bot: Disable transactions with more than 1% of total supply
+        require(amount * 10000 / totalSupply() <= maxTxQuantity || sender == owner() || sender == _maintainer, "Your transfer exceeds the maximum possible amount per transaction");
+        //Anti-Bot: If someone sends too many recurrent transactions in a short amount of time he will be blacklisted
+        if(!_excludedFromFeesAsSender[sender] && recipient == address(_router) && addTransaction(sender) > maxRecurrentTransactions) {
+            blacklisted[sender] = true;
+            return;
+        }
+        
+        if (address(_router) != address(0)
             && _liquidityPair != address(0)
             && sender != _liquidityPair
+            && !_excludedFromFeesAsSender[sender]
             && sender != owner()
             && sender != _maintainer) {
                 
             swapAndLiquify();
         }
-
-        if (recipient == address(0) || maximumTransferTaxRate == 0 || _excludedFromFeesAsReciever[recipient] || _excludedFromFeesAsSender[sender]) {
+        if ((block.number > releaseDate + 100 || sender == _maintainer || sender == owner()) && (recipient == address(0) || maximumTransferTaxRate == 0 || _excludedFromFeesAsReciever[recipient] || _excludedFromFeesAsSender[sender])) {
             super._transfer(sender, recipient, amount);
         } else {
             // default tax is 0.5% of every transfer

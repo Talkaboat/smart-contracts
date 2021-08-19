@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity >=0.7.0 <0.9.0;
+pragma solidity >=0.8.7 <0.9.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -117,7 +117,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         emit UpdateEmissionRate(msg.sender, _coinPerBlock);
     }
     
-    function updateEmissionRateInternal(uint256 _coinPerBlock) private {
+    function updateEmissionRateInternal(uint256 _coinPerBlock) internal {
         massUpdatePools();
         coinPerBlock = _coinPerBlock;
         emit UpdateEmissionRate(address(this), _coinPerBlock);
@@ -297,27 +297,34 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
     }
     
     function checkPriceUpdate() override public {
-        if(address(coin) == address(0)) {
+        if(address(coin) == address(0) || address(coin.liquidityPair()) == address(0)) {
             return;
         }
-        if (lastPriceUpdateBlock < block.timestamp - 1 hours) {
-            hourlyPrices[hourlyIndex++] = getTokenPrice();
+        if (lastPriceUpdateBlock < block.timestamp - 1 minutes) {
+            uint256 tokenPrice = getTokenPrice();
+            hourlyPrices[hourlyIndex++] = tokenPrice;
             lastPriceUpdateBlock = block.timestamp;
         }
-        if (lastEmissionUpdateBlock < block.timestamp - 24 hours && hourlyIndex > 2) {
+        if (lastEmissionUpdateBlock < block.timestamp - 24 minutes && hourlyIndex > 2) {
             uint256 averagePrice = getAveragePrice();
             lastEmissionUpdateBlock = block.timestamp;
             hourlyIndex = 0;
+            bool shouldUpdateEmissionRate = lastAveragePrice != 0;
             updateLastAveragePrice(averagePrice);
-            uint256 percentageDifference = getPriceDifference(int256(lastAveragePrice), int256(previousAveragePrice));
-            if(percentageDifference > maxEmissionIncrease) {
-                percentageDifference = maxEmissionIncrease;
+            if(shouldUpdateEmissionRate) {
+                updateEmissionRateByPriceDifference();
             }
-            uint256 newEmissionRate = getNewEmissionRate(percentageDifference, lastAveragePrice > previousAveragePrice);
-            lastEmissionIncrease = percentageDifference;
-            lastAveragePrice = lastAveragePrice;
-            updateEmissionRateInternal(newEmissionRate);
-        
         }
+    }
+    
+    function updateEmissionRateByPriceDifference() internal {
+        uint256 percentageDifference = getPriceDifference(int256(lastAveragePrice), int256(previousAveragePrice));
+        if(percentageDifference > maxEmissionIncrease) {
+            percentageDifference = maxEmissionIncrease;
+        }
+        uint256 newEmissionRate = getNewEmissionRate(percentageDifference, lastAveragePrice > previousAveragePrice);
+        lastEmissionIncrease = percentageDifference;
+        lastAveragePrice = lastAveragePrice;
+        updateEmissionRateInternal(newEmissionRate);
     }
 }

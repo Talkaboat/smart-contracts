@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity >=0.7.0 <0.9.0;
+pragma solidity >=0.8.7 <0.9.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -12,32 +12,32 @@ import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./TransferHelper.sol";
+import "./TimeLock.sol";
 
-abstract contract Liquify is ERC20, ReentrancyGuard, Ownable {
+abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
     using Address for address;
     using SafeMath for uint256;
     /* =====================================================================================================================
                                                         Variables
     ===================================================================================================================== */
+    bool public isLiquifyDisabled = true;
     //Transfer Tax
     //Transfer tax rate in basis points. default 50 => 0.5%
     uint16 public minimumTransferTaxRate = 50;
     uint16 public maximumTransferTaxRate = 500;
+    uint16 public constant MAXIMUM_TAX = 1000;
     
     uint16 public reDistributionRate = 40;
     uint16 public devRate = 20;
     uint16 public donationRate = 10;
     
     uint256 public _minAmountToLiquify = 100000 ether;
-    bool public _swapAndLiquifyEnabled = true;
     
     address public _devWallet = 0x2EA9CA0ca8043575f2189CFF9897B575b0c7e857;          //Wallet where the dev fees will go to
     address public _donationWallet = 0xDBdbb811bd567C1a2Ac50159b46583Caa494d055;     //Wallet where donation fees will go to
     address public _rewardWallet = 0x2EA9CA0ca8043575f2189CFF9897B575b0c7e857;     //Wallet where rewards will be distributed
     
     address public _liquidityPair;
-    
-    address public _maintainer;  
     
     IUniswapV2Router02 public _router;
     
@@ -47,13 +47,11 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable {
     /* =====================================================================================================================
                                                         Events
     ===================================================================================================================== */
-    event MaintainerTransferred(address indexed previousMaintainer, address indexed newMaintainer);
     event MinimumTransferTaxRateUpdated(address indexed caller, uint256 previousRate, uint256 newRate);
     event MaximumTransferTaxRateUpdated(address indexed caller, uint256 previousRate, uint256 newRate);
     event ReDistributionRateUpdated(address indexed caller, uint256 previousRate, uint256 newRate);
     event DevRateUpdated(address indexed caller, uint256 previousRate, uint256 newRate);
     event DonationRateUpdated(address indexed caller, uint256 previousRate, uint256 newRate);
-    event SwapAndLiquifyEnabledUpdated(address indexed caller, bool enabled);
     event MinAmountToLiquifyUpdated(address indexed caller, uint256 previousAmount, uint256 newAmount);
     event RouterUpdated(address indexed caller, address indexed router, address indexed pair);
     event ChangedLiqudityPair(address indexed caller, address indexed pair);
@@ -72,13 +70,7 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable {
         maximumTransferTaxRate = _maximumTransferTaxRate;
     }
     
-    modifier onlyMaintainerOrOwner() {
-        require(owner() == msg.sender || _maintainer == msg.sender, "operator: caller is not allowed to call this function");
-        _;
-    }
-    
     constructor() {
-        setMaintainer(msg.sender);
         excludeFromAll(_devWallet);
         excludeFromAll(_donationWallet);
         updateRouter(0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3);
@@ -87,25 +79,41 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable {
     /* =====================================================================================================================
                                                         Set Functions
     ===================================================================================================================== */
-    function setMaintainer(address _newMaintainer) public onlyMaintainerOrOwner {
-        require(_newMaintainer != _maintainer && _newMaintainer != address(0), "TAB::setMaintainer: Maintainer can\'t equal previous maintainer or zero address");
-        address previousMaintainer = _maintainer;
-        _maintainer = _newMaintainer;
-        excludeFromAll(_newMaintainer);
-        emit MaintainerTransferred(previousMaintainer, _maintainer);
-    }
-    
-    function setLiquidityPair(address _tokenB) public onlyMaintainerOrOwner {
+    function setLiquidityPair(address _tokenB) public onlyMaintainerOrOwner locked("lp_pair") {
         _liquidityPair = IUniswapV2Factory(_router.factory()).getPair(address(this), _tokenB);
         if(_liquidityPair == address(0)) {
             _liquidityPair = IUniswapV2Factory(_router.factory()).createPair(address(this), _tokenB);
         }
+        excludeTransferFeeAsSender(address(_liquidityPair));
         emit ChangedLiqudityPair(msg.sender, _liquidityPair);
+    }
+    
+    function setDevWallet(address wallet) public onlyMaintainerOrOwner {
+        require(wallet != address(0), "TAB::setDevWallet: Address can't be zero address");
+        _devWallet = wallet;
+    }
+    
+    function setDonationWallet(address wallet) public onlyMaintainerOrOwner {
+        require(wallet != address(0), "TAB::setDevWallet: Address can't be zero address");
+        _donationWallet = wallet;
+    }
+    
+    function setRewardWallet(address wallet) public onlyMaintainerOrOwner {
+        require(wallet != address(0), "TAB::setDevWallet: Address can't be zero address");
+        _rewardWallet = wallet;
     }
     
     /* =====================================================================================================================
                                                     Utility Functions
     ===================================================================================================================== */ 
+    function disableLiquify() public onlyMaintainerOrOwner {
+        isLiquifyDisabled = true;
+    }
+    
+    function enableLiquify() public onlyMaintainerOrOwner {
+        isLiquifyDisabled = false;
+    }
+    
     function excludeFromAll(address _excludee) public onlyMaintainerOrOwner {
         _excludedFromFeesAsSender[_excludee] = true;
         _excludedFromFeesAsReciever[_excludee] = true;
@@ -132,48 +140,38 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable {
         _excludedFromFeesAsReciever[_excludee] = false;
     }
     
-    function updateMinimumTransferTaxRate(uint16 _transferTaxRate) public onlyMaintainerOrOwner {
+    function updateMinimumTransferTaxRate(uint16 _transferTaxRate) public onlyMaintainerOrOwner locked("min_tax") {
         require(_transferTaxRate <= maximumTransferTaxRate, "TAB::updateMinimumTransferTaxRate: minimumTransferTaxRate must not exceed maximumTransferTaxRate.");
         emit MinimumTransferTaxRateUpdated(msg.sender, minimumTransferTaxRate, _transferTaxRate);
         minimumTransferTaxRate = _transferTaxRate;
     }
     
-    function updateMaxTransferAmountRate(uint16 _maxTransferAmountRate) public onlyMaintainerOrOwner {
-        require(_maxTransferAmountRate <= 10000, "TAB::updateMaxTransferAmountRate: Max transfer amount rate must not exceed the maximum rate.");
-        emit MaximumTransferTaxRateUpdated(msg.sender, maximumTransferTaxRate, _maxTransferAmountRate);
-        maximumTransferTaxRate = _maxTransferAmountRate;
-    }
-    
-    function updateMaximumTransferTaxRate(uint16 _transferTaxRate) public onlyMaintainerOrOwner {
-        require(_transferTaxRate >= minimumTransferTaxRate, "TAB::updateMinimumTransferTaxRate: minimumTransferTaxRate must not exceed maximumTransferTaxRate.");
+    function updateMaximumTransferTaxRate(uint16 _transferTaxRate) public onlyMaintainerOrOwner locked("max_tax") {
+        require(_transferTaxRate >= minimumTransferTaxRate, "TAB::updateMaximumTransferTaxRate: maximumTransferTaxRate must not be below minimumTransferTaxRate.");
+        require(_transferTaxRate <= MAXIMUM_TAX, "TAB::updateMaximumTransferTaxRate: maximumTransferTaxRate must exceed MAXIMUM_TAX.");
         emit MaximumTransferTaxRateUpdated(msg.sender, minimumTransferTaxRate, _transferTaxRate);
         maximumTransferTaxRate = _transferTaxRate;
     }
     
-    function updateRedistributionRate(uint16 _rate) public onlyMaintainerOrOwner {
-        require(_rate <= 100, "TAB::updateRedistributionRate: Redistribution rate must not exceed the maximum rate.");
+    function updateRedistributionRate(uint16 _rate) public onlyMaintainerOrOwner locked("redistribution_rate") {
+        require(_rate + devRate + donationRate <= 100, "TAB::updateRedistributionRate: Redistribution rate must not exceed the maximum rate.");
         emit ReDistributionRateUpdated(msg.sender, reDistributionRate, _rate);
         reDistributionRate = _rate;
     }
     
-    function updateDevRate(uint16 _rate) public onlyMaintainerOrOwner {
-        require(_rate <= 100, "TAB::updateDevRate: Burn rate must not exceed the maximum rate.");
+    function updateDevRate(uint16 _rate) public onlyMaintainerOrOwner locked("dev_rate") {
+        require(_rate + donationRate + reDistributionRate <= 100, "TAB::updateDevRate: Burn rate must not exceed the maximum rate.");
         emit DevRateUpdated(msg.sender, devRate, _rate);
         devRate = _rate;
     }
     
-    function updateDonationRate(uint16 _rate) public onlyMaintainerOrOwner {
-        require(_rate <= 100, "TAB::updateDonationRate: Burn rate must not exceed the maximum rate.");
+    function updateDonationRate(uint16 _rate) public onlyMaintainerOrOwner locked("donation_rate") {
+        require(_rate + devRate + reDistributionRate <= 100, "TAB::updateDonationRate: Burn rate must not exceed the maximum rate.");
         emit DonationRateUpdated(msg.sender, donationRate, _rate);
         donationRate = _rate;
     }
     
-    function updateSwapAndLiquifyEnabled(bool _enabled) public onlyMaintainerOrOwner {
-        emit SwapAndLiquifyEnabledUpdated(msg.sender, _enabled);
-        _swapAndLiquifyEnabled = _enabled;
-    }
-    
-    function updateRouter(address router) public onlyMaintainerOrOwner {
+    function updateRouter(address router) public onlyMaintainerOrOwner locked("router") {
         _router = IUniswapV2Router02(router);
         setLiquidityPair(_router.WETH());
         excludeTransferFeeAsSender(router);
@@ -188,6 +186,9 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable {
     * @dev Function to swap the stored liquidity fee tokens and add them to the current liquidity pool
     */
     function swapAndLiquify() public taxFree {
+        if(isLiquifyDisabled) {
+            return;
+        }
         uint256 contractTokenBalance = balanceOf(address(this));
         if (contractTokenBalance >= _minAmountToLiquify) {
             IUniswapV2Pair pair = IUniswapV2Pair(_liquidityPair);
@@ -270,7 +271,7 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable {
         );
     }
     
-    function addLiquidity(uint256 tokenAmount, uint256 otherAmount, address tokenB) private {
+    function addLiquidity(uint256 tokenAmount, uint256 otherAmount, address tokenB) internal {
         // approve token transfer to cover all possible scenarios
         _approve(address(this), address(_router), tokenAmount);
         IERC20(tokenB).approve(address(_router), otherAmount);
@@ -287,7 +288,7 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable {
     }
 
     /// @dev Add liquidity
-    function addLiquidityETH(uint256 tokenAmount, uint256 ethAmount) private {
+    function addLiquidityETH(uint256 tokenAmount, uint256 ethAmount) internal {
         // approve token transfer to cover all possible scenarios
         _approve(address(this), address(_router), tokenAmount);
 
