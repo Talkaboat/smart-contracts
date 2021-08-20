@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity >=0.7.0 <0.9.0;
+pragma solidity ^0.8.7;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -14,10 +14,10 @@ abstract contract TimeLock is Ownable {
     /* =====================================================================================================================
                                                         Variables
     ===================================================================================================================== */
-    bool isLockEnabled = false;
+    bool public isLockEnabled = false;
     mapping(string => uint256) public timelock;
     uint256 private constant _TIMELOCK = 1 days;
-    address public _maintainer;  
+    address private _maintainer;  
         
     /* =====================================================================================================================
                                                         Events
@@ -46,6 +46,12 @@ abstract contract TimeLock is Ownable {
         _maintainer = msg.sender;
     }
     
+    /* =====================================================================================================================
+                                                        Get Functions
+    ===================================================================================================================== */
+    function maintainer() public view returns (address) {
+        return _maintainer;
+    }
         
     /* =====================================================================================================================
                                                         Set Functions
