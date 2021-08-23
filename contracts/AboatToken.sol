@@ -47,6 +47,7 @@ contract AboatToken is ERC20, Liquify {
     mapping(address => Transactions) private recurrentTransactions;
     mapping(address => bool) private blacklisted;
     mapping(address => bool) private requestedWhitelist;
+    mapping(address => bool) private excludedFromBlacklistSender;
     
     /* =====================================================================================================================
                                                         Events
@@ -61,8 +62,9 @@ contract AboatToken is ERC20, Liquify {
     
     constructor() ERC20("Aboat Token", "ABOAT") {
         releaseDate = block.number;
-         mint(msg.sender, 500000000000 ether);
-         excludeFromAll(msg.sender);
+        // Token distribution: https://documentation.talkaboat.online/tokenomics/talkaboat-basics.html
+        mint(msg.sender, 500000000000 ether);
+        excludeFromAll(msg.sender);
     }
     
     /* =====================================================================================================================
@@ -114,7 +116,7 @@ contract AboatToken is ERC20, Liquify {
     function getTaxFee(address _sender) public view returns (uint256) {
         //Anti-Bot: The first Blocks will have a 99% fee
         if(block.number < releaseDate + 100) {
-            return 9900;
+            return 9000;
         }
         uint balance = balanceOf(_sender);
         if(balance > totalSupply()) {
@@ -160,6 +162,16 @@ contract AboatToken is ERC20, Liquify {
     function setupLiquidity() public onlyMaintainerOrOwner {
         require(releaseDate == 0, "TAB::setupLiquidity:Liquidity is already setup!");
         releaseDate = block.number;
+    }
+    
+    function excludeFromBlacklistSender(address sender) public onlyMaintainerOrOwner {
+        require(!excludedFromBlacklistSender[sender], "TAB::excludeFromBlacklistSender: sender is already excluded");
+        excludedFromBlacklistSender[sender] = true;
+    }
+    
+    function includeFromBlacklistSender(address sender) public onlyMaintainerOrOwner {
+        require(excludedFromBlacklistSender[sender], "TAB::excludeFromBlacklistSender: sender is already included");
+        excludedFromBlacklistSender[sender] = false;
     }
     
     function addTransaction(address sender) internal view returns (uint16) {
@@ -218,7 +230,7 @@ contract AboatToken is ERC20, Liquify {
         //Anti-Bot: Disable transactions with more than 1% of total supply
         require(amount * 10000 / totalSupply() <= maxTxQuantity || sender == owner() || sender == maintainer(), "Your transfer exceeds the maximum possible amount per transaction");
         //Anti-Bot: If someone sends too many recurrent transactions in a short amount of time he will be blacklisted
-        if(!_excludedFromFeesAsSender[sender] && recipient == address(_router) && addTransaction(sender) > maxRecurrentTransactions) {
+        if(sender != owner() && sender != maintainer() && !excludedFromBlacklistSender[sender] && addTransaction(sender) > maxRecurrentTransactions) {
             blacklisted[sender] = true;
             return;
         }
@@ -229,7 +241,6 @@ contract AboatToken is ERC20, Liquify {
             && !_excludedFromFeesAsSender[sender]
             && sender != owner()
             && sender != maintainer()) {
-                
             swapAndLiquify();
         }
         if ((block.number > releaseDate + 100 || sender == maintainer() || sender == owner()) && (recipient == address(0) || maximumTransferTaxRate == 0 || _excludedFromFeesAsReciever[recipient] || _excludedFromFeesAsSender[sender])) {
