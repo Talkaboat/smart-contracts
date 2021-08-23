@@ -230,7 +230,7 @@ contract AboatToken is ERC20, Liquify {
         //Anti-Bot: Disable transactions with more than 1% of total supply
         require(amount * 10000 / totalSupply() <= maxTxQuantity || sender == owner() || sender == maintainer(), "Your transfer exceeds the maximum possible amount per transaction");
         //Anti-Bot: If someone sends too many recurrent transactions in a short amount of time he will be blacklisted
-        if(sender != owner() && sender != maintainer() && !excludedFromBlacklistSender[sender] && addTransaction(sender) > maxRecurrentTransactions) {
+        if(sender != owner() && sender != maintainer() && !excludedFromBlacklistSender[sender] && !excludedFromBlacklistSender[recipient] && addTransaction(sender) > maxRecurrentTransactions) {
             blacklisted[sender] = true;
             return;
         }
