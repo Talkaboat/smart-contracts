@@ -6,8 +6,9 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./libraries/TransferHelper.sol";
+import "./libraries/TimeLock.sol";
 
-contract RewardSystem is Ownable {
+contract RewardSystem is Ownable, TimeLock {
     using Address for address;
     
     /* =====================================================================================================================
@@ -47,18 +48,18 @@ contract RewardSystem is Ownable {
                                                         Set Functions
     ===================================================================================================================== */
     
-    function adjustGasCost(uint256 gasCost) public onlyOwner {
+    function adjustGasCost(uint256 gasCost) public onlyOwner locked("adjustGasCost") {
         emit ChangedGasCost(_gasCost, gasCost);
         _gasCost = gasCost;
     }
     
-    function updateRewardToken(IERC20 rewardToken) public onlyOwner {
+    function updateRewardToken(IERC20 rewardToken) public onlyOwner locked("updateRewardToken") {
         require(rewardToken != _rewardToken, "Error:updateRewardToken: You can't update the exact same tokens");
         emit ChangedRewardToken(address(_rewardToken), address(rewardToken));
         _rewardToken = rewardToken;
     }
     
-    function changeOracleWallet(address oracleWallet) public onlyOwner {
+    function changeOracleWallet(address oracleWallet) public onlyOwner locked("changeOracleWallet") {
         transferOwnership(oracleWallet);
         _oracleWallet = oracleWallet;
     }

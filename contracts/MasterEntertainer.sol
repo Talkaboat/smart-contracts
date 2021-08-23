@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
-import "./TalkaboatToken.sol";
+import "./AboatToken.sol";
 import "./libraries/TransferHelper.sol";
 
 import "./libraries/PriceTicker.sol";
@@ -77,7 +77,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         _;
     }
     
-    constructor(TalkaboatToken _coin, address _devaddr, address _feeAddress, uint256 _startBlock) {
+    constructor(AboatToken _coin, address _devaddr, address _feeAddress, uint256 _startBlock) {
         coin = _coin;
         devAddress = _devaddr;
         feeAddress = _feeAddress;
@@ -89,7 +89,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
     /* =====================================================================================================================
                                                         Set Functions
     ===================================================================================================================== */
-    function setDevAddress(address _devAddress) public onlyOwner {
+    function setDevAddress(address _devAddress) public onlyOwner locked("setDevAddress") {
         devAddress = _devAddress;
         emit SetDevAddress(msg.sender, _devAddress);
     }
@@ -111,7 +111,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         poolInfos[_pid].depositFee = _depositFee;
     }
     
-    function updateEmissionRate(uint256 _coinPerBlock) public onlyOwner {
+    function updateEmissionRate(uint256 _coinPerBlock) public onlyOwner locked("updateEmissionRate") {
         massUpdatePools();
         coinPerBlock = _coinPerBlock;
         emit UpdateEmissionRate(msg.sender, _coinPerBlock);
@@ -300,12 +300,12 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         if(address(coin) == address(0) || address(coin.liquidityPair()) == address(0)) {
             return;
         }
-        if (lastPriceUpdateBlock < block.timestamp - 1 minutes) {
+        if (lastPriceUpdateBlock < block.timestamp - 1 hours) {
             uint256 tokenPrice = getTokenPrice();
             hourlyPrices[hourlyIndex++] = tokenPrice;
             lastPriceUpdateBlock = block.timestamp;
         }
-        if (lastEmissionUpdateBlock < block.timestamp - 24 minutes && hourlyIndex > 2) {
+        if (lastEmissionUpdateBlock < block.timestamp - 24 hours && hourlyIndex > 2) {
             uint256 averagePrice = getAveragePrice();
             lastEmissionUpdateBlock = block.timestamp;
             hourlyIndex = 0;

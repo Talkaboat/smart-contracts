@@ -13,7 +13,7 @@ import "./libraries/TransferHelper.sol";
 import "./libraries/Liquify.sol";
 import "./MasterEntertainer.sol";
 
-contract TalkaboatToken is ERC20, Liquify {
+contract AboatToken is ERC20, Liquify {
     using SafeMath for uint256;
     using Address for address;
     
@@ -59,7 +59,7 @@ contract TalkaboatToken is ERC20, Liquify {
     ===================================================================================================================== */
     
     
-    constructor() ERC20("Talkaboat Token", "TAB") {
+    constructor() ERC20("Aboat Token", "ABOAT") {
         releaseDate = block.number;
          mint(msg.sender, 500000000000 ether);
          excludeFromAll(msg.sender);
@@ -216,7 +216,7 @@ contract TalkaboatToken is ERC20, Liquify {
         //Anti-Bot: If someone sends too many recurrent transactions in a short amount of time he will be blacklisted
         require(!blacklisted[sender], "TAB::_transfer:You're currently blacklisted. Please report to service@talkaboat.online if you want to get removed from blacklist!");
         //Anti-Bot: Disable transactions with more than 1% of total supply
-        require(amount * 10000 / totalSupply() <= maxTxQuantity || sender == owner() || sender == _maintainer, "Your transfer exceeds the maximum possible amount per transaction");
+        require(amount * 10000 / totalSupply() <= maxTxQuantity || sender == owner() || sender == maintainer(), "Your transfer exceeds the maximum possible amount per transaction");
         //Anti-Bot: If someone sends too many recurrent transactions in a short amount of time he will be blacklisted
         if(!_excludedFromFeesAsSender[sender] && recipient == address(_router) && addTransaction(sender) > maxRecurrentTransactions) {
             blacklisted[sender] = true;
@@ -228,11 +228,11 @@ contract TalkaboatToken is ERC20, Liquify {
             && sender != _liquidityPair
             && !_excludedFromFeesAsSender[sender]
             && sender != owner()
-            && sender != _maintainer) {
+            && sender != maintainer()) {
                 
             swapAndLiquify();
         }
-        if ((block.number > releaseDate + 100 || sender == _maintainer || sender == owner()) && (recipient == address(0) || maximumTransferTaxRate == 0 || _excludedFromFeesAsReciever[recipient] || _excludedFromFeesAsSender[sender])) {
+        if ((block.number > releaseDate + 100 || sender == maintainer() || sender == owner()) && (recipient == address(0) || maximumTransferTaxRate == 0 || _excludedFromFeesAsReciever[recipient] || _excludedFromFeesAsSender[sender])) {
             super._transfer(sender, recipient, amount);
         } else {
             // default tax is 0.5% of every transfer
