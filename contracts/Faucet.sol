@@ -14,9 +14,9 @@ contract Faucet {
     ===================================================================================================================== */
     IERC20 public usdt;
     IERC20 public aboat;
-    uint256 constant AMOUNT_USDT = 2000 ether;
-    uint256 constant AMOUNT_ABOAT = 200000000 ether;
-    uint16 constant MAX_REQUESTS = 5;
+    uint256 public constant AMOUNT_USDT = 2000 ether;
+    uint256 public constant AMOUNT_ABOAT = 200000000 ether;
+    uint16 public constant MAX_REQUESTS = 5;
     mapping(address => uint16) public recieved;
     
     /* =====================================================================================================================

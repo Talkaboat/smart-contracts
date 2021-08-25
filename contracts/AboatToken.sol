@@ -32,7 +32,6 @@ contract AboatToken is ERC20, Liquify {
     
     uint256 private releaseDate;
     uint16 public maxTxQuantity = 100;
-    uint16 public maxRecurrentTransactions = 5;
     uint256 public gasCost = 2100000000000000;
     
     uint public totalFeesPaid;
@@ -47,7 +46,6 @@ contract AboatToken is ERC20, Liquify {
     mapping(address => Transactions) private recurrentTransactions;
     mapping(address => bool) private blacklisted;
     mapping(address => bool) private requestedWhitelist;
-    mapping(address => bool) private excludedFromBlacklistSender;
     
     /* =====================================================================================================================
                                                         Events
@@ -83,10 +81,6 @@ contract AboatToken is ERC20, Liquify {
         require(_newDistribution > totalSupply(), "TAB::setMaxDistribution: Distribution can't be lower than the current total supply");
         maxDistribution = _newDistribution;
         emit MaxDistributionChanged(_newDistribution);
-    }
-    
-    function setMaxRecurrentTransactions(uint16 amount) public onlyMaintainerOrOwner {
-        maxRecurrentTransactions = amount;
     }
     
     function setMaxTransactionQuantity(uint16 quantity) public onlyMaintainerOrOwner {
@@ -164,25 +158,6 @@ contract AboatToken is ERC20, Liquify {
         releaseDate = block.number;
     }
     
-    function excludeFromBlacklistSender(address sender) public onlyMaintainerOrOwner {
-        require(!excludedFromBlacklistSender[sender], "TAB::excludeFromBlacklistSender: sender is already excluded");
-        excludedFromBlacklistSender[sender] = true;
-    }
-    
-    function includeFromBlacklistSender(address sender) public onlyMaintainerOrOwner {
-        require(excludedFromBlacklistSender[sender], "TAB::excludeFromBlacklistSender: sender is already included");
-        excludedFromBlacklistSender[sender] = false;
-    }
-    
-    function addTransaction(address sender) internal view returns (uint16) {
-        Transactions memory userTransactions = recurrentTransactions[sender];
-        if(userTransactions.lastTransaction + 5 minutes >= block.timestamp) {
-            userTransactions.recurrentTransactions += 1;
-        }
-        userTransactions.lastTransaction = block.timestamp;
-        return userTransactions.recurrentTransactions;
-    }
-    
     function getTransactions(address user) public onlyMaintainerOrOwner view returns (Transactions memory ) {
         return recurrentTransactions[user];
     }
@@ -229,11 +204,6 @@ contract AboatToken is ERC20, Liquify {
         require(!blacklisted[sender], "TAB::_transfer:You're currently blacklisted. Please report to service@talkaboat.online if you want to get removed from blacklist!");
         //Anti-Bot: Disable transactions with more than 1% of total supply
         require(amount * 10000 / totalSupply() <= maxTxQuantity || sender == owner() || sender == maintainer(), "Your transfer exceeds the maximum possible amount per transaction");
-        //Anti-Bot: If someone sends too many recurrent transactions in a short amount of time he will be blacklisted
-        if(sender != owner() && sender != maintainer() && !excludedFromBlacklistSender[sender] && !excludedFromBlacklistSender[recipient] && addTransaction(sender) > maxRecurrentTransactions) {
-            blacklisted[sender] = true;
-            return;
-        }
         
         if (address(_router) != address(0)
             && _liquidityPair != address(0)
