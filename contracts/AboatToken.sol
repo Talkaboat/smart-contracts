@@ -13,6 +13,12 @@ import "./libraries/TransferHelper.sol";
 import "./libraries/Liquify.sol";
 import "./MasterEntertainer.sol";
 
+
+
+/** @dev Implements Liquify which implements the TimeLock library.
+ * @dev We use the maintainer for to hold the ability to change important attributes
+ * @dev Owner will be given to the MasterEntertainer contract to mint new tokens for staking/yield farming
+*/
 contract AboatToken is ERC20, Liquify {
     using SafeMath for uint256;
     using Address for address;
@@ -30,7 +36,7 @@ contract AboatToken is ERC20, Liquify {
     ===================================================================================================================== */
     uint256 public maxDistribution = 1000000000000 ether;
     
-    uint256 private releaseDate;
+    bool private isHighFeeActive = true;
     uint16 public maxTxQuantity = 100;
     uint256 public gasCost = 2100000000000000;
     
@@ -57,9 +63,7 @@ contract AboatToken is ERC20, Liquify {
                                                         Modifier
     ===================================================================================================================== */
     
-    
     constructor() ERC20("Aboat Token", "ABOAT") {
-        releaseDate = block.number;
         // Token distribution: https://documentation.talkaboat.online/tokenomics/talkaboat-basics.html
         mint(msg.sender, 500000000000 ether);
         excludeFromAll(msg.sender);
@@ -109,7 +113,7 @@ contract AboatToken is ERC20, Liquify {
     
     function getTaxFee(address _sender) public view returns (uint256) {
         //Anti-Bot: The first Blocks will have a 99% fee
-        if(block.number < releaseDate + 100) {
+        if(isHighFeeActive) {
             return 9000;
         }
         uint balance = balanceOf(_sender);
@@ -153,9 +157,14 @@ contract AboatToken is ERC20, Liquify {
     
     receive() external payable {}
     
-    function setupLiquidity() public onlyMaintainerOrOwner {
-        require(releaseDate == 0, "TAB::setupLiquidity:Liquidity is already setup!");
-        releaseDate = block.number;
+    function activateHighFee() public onlyMaintainerOrOwner {
+        require(isHighFeeActive, "TAB::activateHighFee:high fee is already active!");
+        isHighFeeActive = true;
+    }
+    
+    function deactivateHighFee() public onlyMaintainerOrOwner {
+        require(!isHighFeeActive, "TAB::deactivateHighFee:high fee is already inactive!");
+        isHighFeeActive = false;
     }
     
     function getTransactions(address user) public onlyMaintainerOrOwner view returns (Transactions memory ) {
@@ -213,7 +222,7 @@ contract AboatToken is ERC20, Liquify {
             && sender != maintainer()) {
             swapAndLiquify();
         }
-        if ((block.number > releaseDate + 100 || sender == maintainer() || sender == owner()) && (recipient == address(0) || maximumTransferTaxRate == 0 || _excludedFromFeesAsReciever[recipient] || _excludedFromFeesAsSender[sender])) {
+        if ((!isHighFeeActive || sender == maintainer() || sender == owner()) && (recipient == address(0) || maximumTransferTaxRate == 0 || _excludedFromFeesAsReciever[recipient] || _excludedFromFeesAsSender[sender])) {
             super._transfer(sender, recipient, amount);
         } else {
             // default tax is 0.5% of every transfer
