@@ -24,14 +24,6 @@ contract AboatToken is ERC20, Liquify {
     using Address for address;
     
     /* =====================================================================================================================
-                                                        Anti-Bot Helper
-    ===================================================================================================================== */
-    struct Transactions {
-        uint256 lastTransaction;
-        uint16 recurrentTransactions;
-    }
-    
-    /* =====================================================================================================================
                                                         Variables
     ===================================================================================================================== */
     uint256 public maxDistribution = 1000000000000 ether;
@@ -49,7 +41,6 @@ contract AboatToken is ERC20, Liquify {
     //Master Entertainer contract
     MasterEntertainer public _masterEntertainer;
     
-    mapping(address => Transactions) private recurrentTransactions;
     mapping(address => bool) private blacklisted;
     mapping(address => bool) private requestedWhitelist;
     
@@ -165,10 +156,6 @@ contract AboatToken is ERC20, Liquify {
     function deactivateHighFee() public onlyMaintainerOrOwner {
         require(!isHighFeeActive, "TAB::deactivateHighFee:high fee is already inactive!");
         isHighFeeActive = false;
-    }
-    
-    function getTransactions(address user) public onlyMaintainerOrOwner view returns (Transactions memory ) {
-        return recurrentTransactions[user];
     }
     
     function blacklist(address user) public onlyMaintainerOrOwner {
