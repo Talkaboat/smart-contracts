@@ -43,14 +43,6 @@ contract Vesting is Ownable {
     /* =====================================================================================================================
                                                         Get Functions
     ===================================================================================================================== */
-    function remainingBalance() public view returns (uint256) {
-        if(address(token) != address(0)) {
-            return token.balanceOf(address(this));
-        } else {
-            return address(this).balance;
-        }
-    }
-    
     function nextClaim() public view returns (uint256) {
         require(claimed < claimDays.length, "ABOAT::nextClaim: You claimed all Token");
         return(claimDays[claimed]);
