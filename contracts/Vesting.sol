@@ -74,12 +74,15 @@ contract Vesting is Ownable {
     function claim() public onlyOwner {
         require(nextClaim() >= block.timestamp, "ABOAT::claim: You can't claim before set date");
         uint256 balance = getRemainingBalance();
+        require(balance > 0, "ABOAT::claim: There are no tokens left to be claimed!");
         uint256 release = releasePerCycle + instantRelease;
+        release = balance > release ? release : balance;
         instantRelease = 0;
         if(address(token) != address(0)) {
-            TransferHelper.safeTransfer(address(token), msg.sender, balance > release ? release : balance);
+            TransferHelper.safeTransfer(address(token), msg.sender, release);
         } else {
-            TransferHelper.safeTransferETH(msg.sender, balance > release ? release : balance);
+            TransferHelper.safeTransferETH(msg.sender, release);
         }
+        emit Claimed(msg.sender, release);
     }
 }
