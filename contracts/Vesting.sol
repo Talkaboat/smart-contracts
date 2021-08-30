@@ -19,6 +19,7 @@ contract Vesting is Ownable {
     uint256 public instantRelease;
     uint256[] public claimDays;
     uint256 public claimed;
+    uint256 public cycles;
     
     
     /* =====================================================================================================================
@@ -31,8 +32,9 @@ contract Vesting is Ownable {
         token = _token;
         releasePerCycle = _releasePerCycle;
         instantRelease = _instantRelease;
+        cycles = _cycles;
         for(uint index = 0; index <= _cycles; index++) {
-            claimDays.push(1 days * _releaseOnDayFromNow + 30 days * index);
+            claimDays.push((1 days * _releaseOnDayFromNow) + (30 days * index));
         }
     }
     
@@ -54,19 +56,29 @@ contract Vesting is Ownable {
         return(claimDays[claimed]);
     }
     
+    function getRemainingBalance() public view returns (uint256)  {
+         if(address(token) != address(0)) {
+             return token.balanceOf(address(this));
+         } else {
+             return address(this).balance;
+         }
+    }
+    
+    function balanceAfterCycles(uint256 _estimatedBalance) public view returns (uint256) {
+        return (_estimatedBalance == 0 ? getRemainingBalance() : _estimatedBalance) - instantRelease - (releasePerCycle * (cycles + 1));
+    }
+    
     /* =====================================================================================================================
                                                     Utility Functions
     ===================================================================================================================== */ 
     function claim() public onlyOwner {
         require(nextClaim() >= block.timestamp, "ABOAT::claim: You can't claim before set date");
-        uint256 balance = 0;
+        uint256 balance = getRemainingBalance();
         uint256 release = releasePerCycle + instantRelease;
         instantRelease = 0;
         if(address(token) != address(0)) {
-            balance = token.balanceOf(address(this));
             TransferHelper.safeTransfer(address(token), msg.sender, balance > release ? release : balance);
         } else {
-            balance = address(this).balance;
             TransferHelper.safeTransferETH(msg.sender, balance > release ? release : balance);
         }
     }
