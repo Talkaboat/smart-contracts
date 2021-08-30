@@ -30,10 +30,11 @@ contract PreSale is Ownable {
     ===================================================================================================================== */
     event Claimed(address indexed owner, uint256 indexed amount);
     event Bought(address indexed buyer, uint256 indexed amount);
-    constructor(IERC20 _rewardToken, IERC20 _paymentToken, uint256 _limit) {
+    constructor(IERC20 _rewardToken, IERC20 _paymentToken, uint256 _limit, uint256 _softcap) {
         rewardToken = _rewardToken;
         paymentToken = _paymentToken;
         limit = _limit;
+        softcap = _softcap;
     }
     
     function claimAndEndSale() public onlyOwner {
