@@ -22,6 +22,7 @@ contract PreSale is Ownable {
     uint256 public soldTokens;
     bool public saleEnded;
     
+    mapping(address => bool) public whitelisted;
     mapping(address => uint256) public bought;
     mapping(address => bool) public claimed;
 
@@ -40,11 +41,20 @@ contract PreSale is Ownable {
     function claimAndEndSale() public onlyOwner {
         require(!saleEnded, "ABOAT::claimAndEndSale: Sale already ended");
         saleEnded = true;
-        if(address(paymentToken) != address(0)) {
-            TransferHelper.safeTransfer(address(paymentToken), msg.sender, paymentToken.balanceOf(address(this)));
+        if(softcap <= soldTokens) {
+            if(address(paymentToken) != address(0)) {
+                TransferHelper.safeTransfer(address(paymentToken), msg.sender, paymentToken.balanceOf(address(this)));
+            } else {
+                TransferHelper.safeTransferETH(msg.sender, address(this).balance);
+            } 
         } else {
-            TransferHelper.safeTransferETH(msg.sender, address(this).balance);
+             if(address(rewardToken) != address(0)) {
+                TransferHelper.safeTransfer(address(rewardToken), msg.sender, rewardToken.balanceOf(address(this)));
+            } else {
+                TransferHelper.safeTransferETH(msg.sender,  address(this).balance);
+            }
         }
+
     }
     
     function getRemainingBalance() public view returns (uint256) {
@@ -55,8 +65,15 @@ contract PreSale is Ownable {
         }
     }
     
+    function whitelist(address[] memory addresses) public onlyOwner {
+        for(uint index = 0; index < addresses.length; index++) {
+            whitelisted[addresses[index]] = true;
+        }
+    }
+    
     function buy(uint256 amount) public payable {
         require(!saleEnded, "ABOAT::buy: Sale already ended!");
+        require(whitelisted[msg.sender], "ABOAT::buy: You're not whitelisted for this sale!");
         bool isEthToken = address(rewardToken) == address(0);
         require(!isEthToken || msg.value == amount, "ABOAT::buy: Sent value doesn't meet the given amount");
         require(bought[msg.sender] + amount <= limit, "ABOAT::buy: Amount would exceed the maximum allowed limit");
