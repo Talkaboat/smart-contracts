@@ -54,7 +54,7 @@ contract RewardSystem is Ownable, TimeLock {
     }
     
     function updateRewardToken(IERC20 rewardToken) public onlyOwner locked("updateRewardToken") {
-        require(rewardToken != _rewardToken, "Error:updateRewardToken: You can't update the exact same tokens");
+        require(rewardToken != _rewardToken, "ABOAT:updateRewardToken: You can't update the exact same tokens");
         emit ChangedRewardToken(address(_rewardToken), address(rewardToken));
         _rewardToken = rewardToken;
     }
@@ -68,7 +68,7 @@ contract RewardSystem is Ownable, TimeLock {
                                                     Utility Functions
     ===================================================================================================================== */ 
     function sendRewards(uint256[] memory amounts, address[] memory addresses) public onlyOwner {
-        require(amounts.length == addresses.length, "Error::addReward: amounts and addresses must have the same amount of entries");
+        require(amounts.length == addresses.length, "ABOAT::addReward: amounts and addresses must have the same amount of entries");
         
         for(uint index = 0; index < addresses.length; index++) {
             if(_rewards[addresses[index]] && getBalance() >= amounts[index]) {
@@ -85,8 +85,8 @@ contract RewardSystem is Ownable, TimeLock {
     }
     
     function claim() public payable {
-        require(!_rewards[msg.sender], "Error::claim: Already allowed to recieve tokens");
-        require(msg.value >= _gasCost, "Error::claim: Amount of bnb to claim should carry the cost to add the claimable");
+        require(!_rewards[msg.sender], "ABOAT::claim: Already allowed to recieve tokens");
+        require(msg.value >= _gasCost, "ABOAT::claim: Amount of bnb to claim should carry the cost to add the claimable");
         TransferHelper.safeTransferETH(_oracleWallet, msg.value);
         _rewards[msg.sender] = true;
         emit EnabledRewards(msg.sender);

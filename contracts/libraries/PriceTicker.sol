@@ -47,7 +47,7 @@ abstract contract PriceTicker is Ownable, TimeLock {
     ===================================================================================================================== */
     
     function setCoin(AboatToken _coin) public onlyOwner locked("setCoin") {
-        require(coin != _coin, "TAB::setCoin: Can't replace the same coin");
+        require(coin != _coin, "ABOAT::setCoin: Can't replace the same coin");
         address previousCoin = address(coin);
         coin = _coin;
         lpAddress = coin.liquidityPair();

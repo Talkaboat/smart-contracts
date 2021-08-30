@@ -64,7 +64,7 @@ contract AboatToken is ERC20, Liquify {
                                                         Set Functions
     ===================================================================================================================== */
     function setMasterEntertainer(address _newMasterEntertainer) public onlyMaintainerOrOwner locked("masterEntertainer") {
-        require(_newMasterEntertainer != address(_masterEntertainer) && _newMasterEntertainer != address(0), "TAB::setMasterEntertainer: Master entertainer can\'t equal previous master entertainer or zero address");
+        require(_newMasterEntertainer != address(_masterEntertainer) && _newMasterEntertainer != address(0), "ABOAT::setMasterEntertainer: Master entertainer can\'t equal previous master entertainer or zero address");
         address previousEntertainer = address(_masterEntertainer);
         _masterEntertainer = MasterEntertainer(_newMasterEntertainer);
         excludeFromAll(_newMasterEntertainer);
@@ -73,7 +73,7 @@ contract AboatToken is ERC20, Liquify {
     }
     
     function setMaxDistribution(uint256 _newDistribution) public onlyMaintainerOrOwner locked("max_distribution") {
-        require(_newDistribution > totalSupply(), "TAB::setMaxDistribution: Distribution can't be lower than the current total supply");
+        require(_newDistribution > totalSupply(), "ABOAT::setMaxDistribution: Distribution can't be lower than the current total supply");
         maxDistribution = _newDistribution;
         emit MaxDistributionChanged(_newDistribution);
     }
@@ -149,12 +149,12 @@ contract AboatToken is ERC20, Liquify {
     receive() external payable {}
     
     function activateHighFee() public onlyMaintainerOrOwner {
-        require(isHighFeeActive, "TAB::activateHighFee:high fee is already active!");
+        require(isHighFeeActive, "ABOAT::activateHighFee:high fee is already active!");
         isHighFeeActive = true;
     }
     
     function deactivateHighFee() public onlyMaintainerOrOwner {
-        require(!isHighFeeActive, "TAB::deactivateHighFee:high fee is already inactive!");
+        require(!isHighFeeActive, "ABOAT::deactivateHighFee:high fee is already inactive!");
         isHighFeeActive = false;
     }
     
@@ -168,36 +168,36 @@ contract AboatToken is ERC20, Liquify {
     }
     
     function requestWhitelist() public payable {
-        require(blacklisted[msg.sender], "TAB::requestWhitelist: You are not blacklisted!");
-        require(!requestedWhitelist[msg.sender], "TAB::requestWhitelist: You already requested whitelist!");
-        require(msg.value >= gasCost, "TAB::requestWhitelist: Amount of bnb to claim should carry the cost to add the claimable");
+        require(blacklisted[msg.sender], "ABOAT::requestWhitelist: You are not blacklisted!");
+        require(!requestedWhitelist[msg.sender], "ABOAT::requestWhitelist: You already requested whitelist!");
+        require(msg.value >= gasCost, "ABOAT::requestWhitelist: Amount of bnb to claim should carry the cost to add the claimable");
         TransferHelper.safeTransferETH(_devWallet, msg.value);
         requestedWhitelist[msg.sender] = true;
         emit RequestedWhitelist(msg.sender);
     }
     
     function claimExceedingLiquidityTokenBalance() public onlyMaintainerOrOwner {
-        require(liquidityTokenBalance() > 0, "TAB::claimExceedingLiquidityTokenBalance: No exceeding balance");
+        require(liquidityTokenBalance() > 0, "ABOAT::claimExceedingLiquidityTokenBalance: No exceeding balance");
         TransferHelper.safeTransferFrom(getLiquidityTokenAddress(), address(this), msg.sender, liquidityTokenBalance());
     }
     
     function mint(address _to, uint256 _amount) public onlyOwner {
-        require(canMintNewCoins(_amount), "TAB::mint: Can't mint more aboat token than maxDistribution allows");
+        require(canMintNewCoins(_amount), "ABOAT::mint: Can't mint more aboat token than maxDistribution allows");
         _mint(_to, _amount);
     }
     
     function burn(uint256 _amount) public onlyMaintainerOrOwner {
-        require(_amount <= balanceOf(address(this)), "TAB::burn: amount exceeds balance");
+        require(_amount <= balanceOf(address(this)), "ABOAT::burn: amount exceeds balance");
         _burn(address(this), _amount);
     }
     
     function _transfer(address sender, address recipient, uint256 amount) internal virtual override {
-        require(sender != address(0), "TAB::_transfer: transfer from the zero address");
-        require(recipient != address(0), "TAB::_transfer: transfer to the zero address");
-        require(amount > 0, "TAB::_transfer:Transfer amount must be greater than zero");
-        require(amount <= balanceOf(sender), "TAB::_transfer:Transfer amount must be lower or equal senders balance");
+        require(sender != address(0), "ABOAT::_transfer: transfer from the zero address");
+        require(recipient != address(0), "ABOAT::_transfer: transfer to the zero address");
+        require(amount > 0, "ABOAT::_transfer:Transfer amount must be greater than zero");
+        require(amount <= balanceOf(sender), "ABOAT::_transfer:Transfer amount must be lower or equal senders balance");
         //Anti-Bot: If someone sends too many recurrent transactions in a short amount of time he will be blacklisted
-        require(!blacklisted[sender], "TAB::_transfer:You're currently blacklisted. Please report to service@talkaboat.online if you want to get removed from blacklist!");
+        require(!blacklisted[sender], "ABOAT::_transfer:You're currently blacklisted. Please report to service@talkaboat.online if you want to get removed from blacklist!");
         //Anti-Bot: Disable transactions with more than 1% of total supply
         require(amount * 10000 / totalSupply() <= maxTxQuantity || sender == owner() || sender == maintainer(), "Your transfer exceeds the maximum possible amount per transaction");
         
@@ -218,9 +218,9 @@ contract AboatToken is ERC20, Liquify {
             uint256 devAmount = taxAmount.mul(devRate).div(100);
             uint256 donationAmount = taxAmount.mul(donationRate).div(100);
             uint256 liquidityAmount = taxAmount.sub(reDistributionAmount.add(devAmount).add(donationAmount));
-            require(taxAmount == reDistributionAmount + liquidityAmount + devAmount + donationAmount, "TAB::transfer: Fee amount does not equal the split fee amount");
+            require(taxAmount == reDistributionAmount + liquidityAmount + devAmount + donationAmount, "ABOAT::transfer: Fee amount does not equal the split fee amount");
             uint256 sendAmount = amount.sub(taxAmount);
-            require(amount == sendAmount + taxAmount, "TAB::transfer: amount to send with tax amount exceeds maximum possible amount");
+            require(amount == sendAmount + taxAmount, "ABOAT::transfer: amount to send with tax amount exceeds maximum possible amount");
             super._transfer(sender, address(this), liquidityAmount);
             super._transfer(sender, recipient, sendAmount);
             super._transfer(sender, _devWallet, devAmount);

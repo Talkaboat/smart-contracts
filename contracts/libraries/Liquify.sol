@@ -22,8 +22,8 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
     ===================================================================================================================== */
     bool public isLiquifyDisabled = true;
     //Transfer Tax
-    //Transfer tax rate in basis points. default 50 => 0.5%
-    uint16 public minimumTransferTaxRate = 50;
+    //Transfer tax rate in basis points. default 100 => 1%
+    uint16 public minimumTransferTaxRate = 100;
     uint16 public maximumTransferTaxRate = 500;
     uint16 public constant MAXIMUM_TAX = 1000;
     
@@ -89,17 +89,17 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
     }
     
     function setDevWallet(address wallet) public onlyMaintainerOrOwner {
-        require(wallet != address(0), "TAB::setDevWallet: Address can't be zero address");
+        require(wallet != address(0), "ABOAT::setDevWallet: Address can't be zero address");
         _devWallet = wallet;
     }
     
     function setDonationWallet(address wallet) public onlyMaintainerOrOwner {
-        require(wallet != address(0), "TAB::setDevWallet: Address can't be zero address");
+        require(wallet != address(0), "ABOAT::setDevWallet: Address can't be zero address");
         _donationWallet = wallet;
     }
     
     function setRewardWallet(address wallet) public onlyMaintainerOrOwner {
-        require(wallet != address(0), "TAB::setDevWallet: Address can't be zero address");
+        require(wallet != address(0), "ABOAT::setDevWallet: Address can't be zero address");
         _rewardWallet = wallet;
     }
     
@@ -141,32 +141,32 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
     }
     
     function updateMinimumTransferTaxRate(uint16 _transferTaxRate) public onlyMaintainerOrOwner locked("min_tax") {
-        require(_transferTaxRate <= maximumTransferTaxRate, "TAB::updateMinimumTransferTaxRate: minimumTransferTaxRate must not exceed maximumTransferTaxRate.");
+        require(_transferTaxRate <= maximumTransferTaxRate, "ABOAT::updateMinimumTransferTaxRate: minimumTransferTaxRate must not exceed maximumTransferTaxRate.");
         emit MinimumTransferTaxRateUpdated(msg.sender, minimumTransferTaxRate, _transferTaxRate);
         minimumTransferTaxRate = _transferTaxRate;
     }
     
     function updateMaximumTransferTaxRate(uint16 _transferTaxRate) public onlyMaintainerOrOwner locked("max_tax") {
-        require(_transferTaxRate >= minimumTransferTaxRate, "TAB::updateMaximumTransferTaxRate: maximumTransferTaxRate must not be below minimumTransferTaxRate.");
-        require(_transferTaxRate <= MAXIMUM_TAX, "TAB::updateMaximumTransferTaxRate: maximumTransferTaxRate must exceed MAXIMUM_TAX.");
+        require(_transferTaxRate >= minimumTransferTaxRate, "ABOAT::updateMaximumTransferTaxRate: maximumTransferTaxRate must not be below minimumTransferTaxRate.");
+        require(_transferTaxRate <= MAXIMUM_TAX, "ABOAT::updateMaximumTransferTaxRate: maximumTransferTaxRate must exceed MAXIMUM_TAX.");
         emit MaximumTransferTaxRateUpdated(msg.sender, minimumTransferTaxRate, _transferTaxRate);
         maximumTransferTaxRate = _transferTaxRate;
     }
     
     function updateRedistributionRate(uint16 _rate) public onlyMaintainerOrOwner locked("redistribution_rate") {
-        require(_rate + devRate + donationRate <= 100, "TAB::updateRedistributionRate: Redistribution rate must not exceed the maximum rate.");
+        require(_rate + devRate + donationRate <= 100, "ABOAT::updateRedistributionRate: Redistribution rate must not exceed the maximum rate.");
         emit ReDistributionRateUpdated(msg.sender, reDistributionRate, _rate);
         reDistributionRate = _rate;
     }
     
     function updateDevRate(uint16 _rate) public onlyMaintainerOrOwner locked("dev_rate") {
-        require(_rate + donationRate + reDistributionRate <= 100, "TAB::updateDevRate: Burn rate must not exceed the maximum rate.");
+        require(_rate + donationRate + reDistributionRate <= 100, "ABOAT::updateDevRate: Burn rate must not exceed the maximum rate.");
         emit DevRateUpdated(msg.sender, devRate, _rate);
         devRate = _rate;
     }
     
     function updateDonationRate(uint16 _rate) public onlyMaintainerOrOwner locked("donation_rate") {
-        require(_rate + devRate + reDistributionRate <= 100, "TAB::updateDonationRate: Burn rate must not exceed the maximum rate.");
+        require(_rate + devRate + reDistributionRate <= 100, "ABOAT::updateDonationRate: Burn rate must not exceed the maximum rate.");
         emit DonationRateUpdated(msg.sender, donationRate, _rate);
         donationRate = _rate;
     }

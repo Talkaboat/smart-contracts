@@ -57,7 +57,7 @@ abstract contract TimeLock is Ownable {
                                                         Set Functions
     ===================================================================================================================== */
     function setMaintainer(address _newMaintainer) public onlyMaintainerOrOwner locked("maintainer") {
-        require(_newMaintainer != _maintainer && _newMaintainer != address(0), "TAB::setMaintainer: Maintainer can\'t equal previous maintainer or zero address");
+        require(_newMaintainer != _maintainer && _newMaintainer != address(0), "ABOAT::setMaintainer: Maintainer can\'t equal previous maintainer or zero address");
         address previousMaintainer = _maintainer;
         _maintainer = _newMaintainer;
         emit MaintainerTransferred(previousMaintainer, _maintainer);

@@ -40,9 +40,9 @@ contract Faucet {
                                                     Utility Functions
     ===================================================================================================================== */ 
     function request() public  {
-        require(recieved[msg.sender] < 5, "TAB::request: You can't claim faucet more than 5 times.");
-        require(usdt.balanceOf(address(this)) >= AMOUNT_USDT, "TAB::request: Not enough usdt left for faucet");
-        require(aboat.balanceOf(address(this)) >= AMOUNT_ABOAT, "TAB::request: Not enough usdt left for faucet");
+        require(recieved[msg.sender] < 5, "ABOAT::request: You can't claim faucet more than 5 times.");
+        require(usdt.balanceOf(address(this)) >= AMOUNT_USDT, "ABOAT::request: Not enough usdt left for faucet");
+        require(aboat.balanceOf(address(this)) >= AMOUNT_ABOAT, "ABOAT::request: Not enough usdt left for faucet");
         recieved[msg.sender] += 1;
         TransferHelper.safeTransfer(address(usdt), msg.sender, AMOUNT_USDT);
         TransferHelper.safeTransfer(address(aboat), msg.sender, AMOUNT_ABOAT);
