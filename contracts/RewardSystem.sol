@@ -17,7 +17,7 @@ contract RewardSystem is Ownable, TimeLock {
     mapping(address => bool) public _rewards;
     uint256 public _gasCost = 2100000000000000;
     
-    address public _oracleWallet;
+    address public _oracleWallet = 0x76049b7cAaB30b8bBBdcfF3A1059d9147dBF7B19;
     
     IERC20 public _rewardToken;
     
@@ -28,10 +28,9 @@ contract RewardSystem is Ownable, TimeLock {
     event EnabledRewards(address indexed owner);
     event ChangedGasCost(uint256 indexed previousCost, uint256 indexed cost);
     event ChangedRewardToken(address indexed previousToken, address indexed newToken);
-    
+    event ChangedOracleWallet(address indexed previousAddress, address indexed newAddress);
     
     constructor(IERC20 rewardToken) {
-        _oracleWallet = msg.sender;
         _rewardToken = rewardToken;
     }
     
@@ -61,7 +60,9 @@ contract RewardSystem is Ownable, TimeLock {
     
     function changeOracleWallet(address oracleWallet) public onlyOwner locked("changeOracleWallet") {
         transferOwnership(oracleWallet);
+        address previous = _oracleWallet;
         _oracleWallet = oracleWallet;
+        emit ChangedOracleWallet(previous, _oracleWallet);
     }
     
     /* =====================================================================================================================

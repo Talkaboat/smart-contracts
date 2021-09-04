@@ -34,7 +34,7 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
     uint256 public _minAmountToLiquify = 100000 ether;
     
     address public _devWallet = 0x2EA9CA0ca8043575f2189CFF9897B575b0c7e857;          //Wallet where the dev fees will go to
-    address public _donationWallet = 0xDBdbb811bd567C1a2Ac50159b46583Caa494d055;     //Wallet where donation fees will go to
+    address public _donationWallet = 0xA7C08AEdCe8caDC3bFb622bd7B651993d1cd24e4;     //Wallet where donation fees will go to
     address public _rewardWallet = 0x2EA9CA0ca8043575f2189CFF9897B575b0c7e857;     //Wallet where rewards will be distributed
     
     address public _liquidityPair;
@@ -73,7 +73,7 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
     constructor() {
         excludeFromAll(_devWallet);
         excludeFromAll(_donationWallet);
-        updateRouter(0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3);
+        updateRouter(0x10ED43C718714eb63d5aA57B78B54704E256024E);
     }
     
     /* =====================================================================================================================

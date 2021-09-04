@@ -1,19 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0
 
 pragma solidity ^0.8.7;
-
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 import "./AboatToken.sol";
 import "./libraries/TransferHelper.sol";
-
 import "./libraries/PriceTicker.sol";
 
 contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
@@ -83,7 +81,6 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         feeAddress = _feeAddress;
         coinPerBlock = 100 ether;
         startBlock = _startBlock;
-        add(20, _coin, 0, false);
     }  
 
     /* =====================================================================================================================

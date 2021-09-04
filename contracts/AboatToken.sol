@@ -28,8 +28,10 @@ contract AboatToken is ERC20, Liquify {
     ===================================================================================================================== */
     uint256 public maxDistribution = 1000000000000 ether;
     
+    bool private isContractActive = false;
     bool private isHighFeeActive = true;
     uint16 public maxTxQuantity = 100;
+    uint16 public maxAccBalance = 300;
     uint256 public gasCost = 2100000000000000;
     
     uint public totalFeesPaid;
@@ -47,16 +49,21 @@ contract AboatToken is ERC20, Liquify {
     /* =====================================================================================================================
                                                         Events
     ===================================================================================================================== */
+    event ChangedHighFeeState(bool indexed state);
     event MasteEntertainerTransferred(address indexed previousMasterEntertainer, address indexed newMasterEntertainer);
     event MaxDistributionChanged(uint256 indexed newMaxDistribution);
     event RequestedWhitelist(address indexed requestee);
+    event Blacklisted(address indexed user);
+    event MaxAccBalanceChanged(uint16 indexed previousMaxBalance, uint16 indexed newMaxBalance);
+    event MaxTransactionQuantityChanged(uint16 indexed previousMaxTxQuantity, uint16 indexed newMaxTxQuantity);
+    event GasCostChanged(uint256 indexed previousGasCost, uint256 indexed newGasCost);
     /* =====================================================================================================================
                                                         Modifier
     ===================================================================================================================== */
     
     constructor() ERC20("Aboat Token", "ABOAT") {
         // Token distribution: https://documentation.talkaboat.online/tokenomics/talkaboat-basics.html
-        mint(msg.sender, 500000000000 ether);
+        mint(msg.sender, 600000000000 ether);
         excludeFromAll(msg.sender);
     }
     
@@ -78,12 +85,22 @@ contract AboatToken is ERC20, Liquify {
         emit MaxDistributionChanged(_newDistribution);
     }
     
+    function setMaxAccBalance(uint16 maxBalance) public onlyMaintainerOrOwner {
+        uint16 previousMaxBalance = maxAccBalance;
+        maxAccBalance = maxBalance;
+        emit MaxAccBalanceChanged(previousMaxBalance, maxAccBalance);
+    }
+    
     function setMaxTransactionQuantity(uint16 quantity) public onlyMaintainerOrOwner {
+        uint16 previous = maxTxQuantity;
         maxTxQuantity = quantity;
+        emit MaxTransactionQuantityChanged(previous, maxTxQuantity);
     }
     
     function setGasCost(uint256 cost) public onlyMaintainerOrOwner {
+        uint256 previous = gasCost;
         gasCost = cost;
+        emit GasCostChanged(previous, gasCost);
     }
 
     
@@ -151,15 +168,19 @@ contract AboatToken is ERC20, Liquify {
     function activateHighFee() public onlyMaintainerOrOwner {
         require(isHighFeeActive, "ABOAT::activateHighFee:high fee is already active!");
         isHighFeeActive = true;
+        emit ChangedHighFeeState(isHighFeeActive);
     }
     
     function deactivateHighFee() public onlyMaintainerOrOwner {
         require(!isHighFeeActive, "ABOAT::deactivateHighFee:high fee is already inactive!");
         isHighFeeActive = false;
+        isContractActive = true;
+        emit ChangedHighFeeState(isHighFeeActive);
     }
     
     function blacklist(address user) public onlyMaintainerOrOwner {
         blacklisted[user] = true;
+        emit Blacklisted(user);
     }
     
     function whitelist(address user) public onlyMaintainerOrOwner {
@@ -200,7 +221,10 @@ contract AboatToken is ERC20, Liquify {
         require(!blacklisted[sender], "ABOAT::_transfer:You're currently blacklisted. Please report to service@talkaboat.online if you want to get removed from blacklist!");
         //Anti-Bot: Disable transactions with more than 1% of total supply
         require(amount * 10000 / totalSupply() <= maxTxQuantity || sender == owner() || sender == maintainer(), "Your transfer exceeds the maximum possible amount per transaction");
-        
+        //Anti-Whale: Only allow wallets to hold a certain percentage of total supply
+        require((amount + balanceOf(recipient)) * 10000 / totalSupply() <= maxAccBalance || recipient == owner() || recipient == maintainer() || recipient == address(this) || _excludedFromFeesAsReciever[recipient] || _excludedFromFeesAsSender[recipient], "ABOAT::_transfer:Balance of recipient can't exceed maxAccBalance");
+        //Liquidity Provision safety
+        require(isContractActive || sender == owner() || sender == maintainer() || _excludedFromFeesAsReciever[recipient] || _excludedFromFeesAsSender[sender], "ABOAT::_transfer:Contract is not yet open for community");
         if (address(_router) != address(0)
             && _liquidityPair != address(0)
             && sender != _liquidityPair
