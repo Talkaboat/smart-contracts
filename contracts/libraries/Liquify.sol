@@ -91,6 +91,7 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
     function setDevWallet(address wallet) public onlyMaintainerOrOwner {
         require(wallet != address(0), "ABOAT::setDevWallet: Address can't be zero address");
         _devWallet = wallet;
+        excludeFromAll(_devWallet);
     }
     
     function setDonationWallet(address wallet) public onlyMaintainerOrOwner {
@@ -101,6 +102,7 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
     function setRewardWallet(address wallet) public onlyMaintainerOrOwner {
         require(wallet != address(0), "ABOAT::setDevWallet: Address can't be zero address");
         _rewardWallet = wallet;
+        excludeFromAll(_rewardWallet);
     }
     
     /* =====================================================================================================================

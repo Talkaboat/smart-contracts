@@ -28,8 +28,8 @@ contract AboatToken is ERC20, Liquify {
     ===================================================================================================================== */
     uint256 public maxDistribution = 1000000000000 ether;
     
-    bool private isContractActive = false;
-    bool private isHighFeeActive = true;
+    bool public isContractActive = false;
+    bool public isHighFeeActive = true;
     uint16 public maxTxQuantity = 100;
     uint16 public maxAccBalance = 300;
     uint256 public gasCost = 2100000000000000;
@@ -166,13 +166,11 @@ contract AboatToken is ERC20, Liquify {
     receive() external payable {}
     
     function activateHighFee() public onlyMaintainerOrOwner {
-        require(isHighFeeActive, "ABOAT::activateHighFee:high fee is already active!");
         isHighFeeActive = true;
         emit ChangedHighFeeState(isHighFeeActive);
     }
     
     function deactivateHighFee() public onlyMaintainerOrOwner {
-        require(!isHighFeeActive, "ABOAT::deactivateHighFee:high fee is already inactive!");
         isHighFeeActive = false;
         isContractActive = true;
         emit ChangedHighFeeState(isHighFeeActive);
@@ -220,7 +218,7 @@ contract AboatToken is ERC20, Liquify {
         //Anti-Bot: If someone sends too many recurrent transactions in a short amount of time he will be blacklisted
         require(!blacklisted[sender], "ABOAT::_transfer:You're currently blacklisted. Please report to service@talkaboat.online if you want to get removed from blacklist!");
         //Anti-Bot: Disable transactions with more than 1% of total supply
-        require(amount * 10000 / totalSupply() <= maxTxQuantity || sender == owner() || sender == maintainer(), "Your transfer exceeds the maximum possible amount per transaction");
+        require(amount * 10000 / totalSupply() <= maxTxQuantity || sender == owner() || sender == maintainer() || _excludedFromFeesAsSender[sender] || _excludedFromFeesAsReciever[sender], "Your transfer exceeds the maximum possible amount per transaction");
         //Anti-Whale: Only allow wallets to hold a certain percentage of total supply
         require((amount + balanceOf(recipient)) * 10000 / totalSupply() <= maxAccBalance || recipient == owner() || recipient == maintainer() || recipient == address(this) || _excludedFromFeesAsReciever[recipient] || _excludedFromFeesAsSender[recipient], "ABOAT::_transfer:Balance of recipient can't exceed maxAccBalance");
         //Liquidity Provision safety
