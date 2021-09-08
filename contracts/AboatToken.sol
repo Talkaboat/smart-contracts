@@ -231,7 +231,7 @@ contract AboatToken is ERC20, Liquify {
             && sender != maintainer()) {
             swapAndLiquify();
         }
-        if ((!isHighFeeActive || sender == maintainer() || sender == owner()) && (recipient == address(0) || maximumTransferTaxRate == 0 || _excludedFromFeesAsReciever[recipient] || _excludedFromFeesAsSender[sender])) {
+        if ((!isHighFeeActive || sender == maintainer() || sender == owner() || _excludedFromFeesAsSender[sender]) && (recipient == address(0) || maximumTransferTaxRate == 0 || _excludedFromFeesAsReciever[recipient] || _excludedFromFeesAsSender[sender])) {
             super._transfer(sender, recipient, amount);
         } else {
             // default tax is 0.5% of every transfer

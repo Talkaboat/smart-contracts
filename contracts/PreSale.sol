@@ -67,7 +67,7 @@ contract PreSale is Ownable {
                 TransferHelper.safeTransferETH(msg.sender,  address(this).balance);
             }
         }
-        emit SaleEnded(saleEnded.add(afterDays.mul(1 minutes)));
+        emit SaleEnded(saleEnded.add(afterDays.mul(1 days)));
     }
     
     //Will only be required if the security audit displays errors that have to be fixed
@@ -124,7 +124,7 @@ contract PreSale is Ownable {
     function claim() public {
         require(saleEnded != 0, "ABOAT::claim: Sale is not over yet!");
         require(!claimed[msg.sender], "ABOAT::claim: Already claimed tokens");
-        require(block.timestamp >= saleEnded.add((afterDays.mul(1 minutes))), "ABOAT::claim: Claim is not available yet.");
+        require(block.timestamp >= saleEnded.add((afterDays.mul(1 days))), "ABOAT::claim: Claim is not available yet.");
         claimed[msg.sender] = true;
         uint256 amount = bought[msg.sender].mul(1e18).div(pricePerToken);
         if(softcap <= soldTokens) {
