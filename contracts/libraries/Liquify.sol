@@ -218,7 +218,7 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
         }
     }
     
-    function swapForEth(uint256 amount) private returns (uint256) {
+    function swapForEth(uint256 amount) internal returns (uint256) {
         uint256 initialBalance = address(this).balance;
                 
         // swap tokens for ETH

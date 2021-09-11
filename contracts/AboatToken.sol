@@ -243,9 +243,12 @@ contract AboatToken is ERC20, Liquify {
             require(taxAmount == reDistributionAmount + liquidityAmount + devAmount + donationAmount, "ABOAT::transfer: Fee amount does not equal the split fee amount");
             uint256 sendAmount = amount.sub(taxAmount);
             require(amount == sendAmount + taxAmount, "ABOAT::transfer: amount to send with tax amount exceeds maximum possible amount");
+            super._transfer(sender, address(this), devAmount + donationAmount);
+            uint256 donationBnb = swapForEth(donationAmount);
+            uint256 devBnb = swapForEth(devAmount);
+            TransferHelper.safeTransferETH(_devWallet, devBnb);
+            TransferHelper.safeTransferETH(_donationWallet, donationBnb);
             super._transfer(sender, address(this), liquidityAmount);
-            super._transfer(sender, recipient, sendAmount);
-            super._transfer(sender, _devWallet, devAmount);
             super._transfer(sender, _donationWallet, donationAmount);
             super._transfer(sender, _rewardWallet, reDistributionAmount);
             amount = sendAmount;
