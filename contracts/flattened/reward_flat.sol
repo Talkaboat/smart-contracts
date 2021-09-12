@@ -1198,6 +1198,7 @@ contract RewardSystem is Ownable, TimeLock {
     
     constructor(IERC20 rewardToken) {
         _rewardToken = rewardToken;
+        changeOracleWallet(_oracleWallet);
     }
     
     receive() external payable {}

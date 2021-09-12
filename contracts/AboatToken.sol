@@ -195,9 +195,9 @@ contract AboatToken is ERC20, Liquify {
         emit RequestedWhitelist(msg.sender);
     }
     
-    function claimExceedingLiquidityTokenBalance() public onlyMaintainerOrOwner {
-        require(liquidityTokenBalance() > 0, "ABOAT::claimExceedingLiquidityTokenBalance: No exceeding balance");
-        TransferHelper.safeTransferFrom(getLiquidityTokenAddress(), address(this), msg.sender, liquidityTokenBalance());
+    function claimExceedingETH() public onlyMaintainerOrOwner {
+        require(address(this).balance > 0, "ABOAT::claimExceedingLiquidityTokenBalance: No exceeding balance");
+        TransferHelper.safeTransferETH(msg.sender, address(this).balance);
     }
     
     function mint(address _to, uint256 _amount) public onlyOwner {
@@ -231,7 +231,7 @@ contract AboatToken is ERC20, Liquify {
             && sender != maintainer()) {
             swapAndLiquify();
         }
-        if ((!isHighFeeActive || sender == maintainer() || sender == owner() || _excludedFromFeesAsSender[sender]) && (recipient == address(0) || maximumTransferTaxRate == 0 || _excludedFromFeesAsReciever[recipient] || _excludedFromFeesAsSender[sender])) {
+        if ((!isHighFeeActive || sender == maintainer() || sender == owner() || _excludedFromFeesAsSender[sender] && _excludedFromFeesAsReciever[recipient]) && (recipient == address(0) || maximumTransferTaxRate == 0 || _excludedFromFeesAsReciever[recipient] || _excludedFromFeesAsSender[sender])) {
             super._transfer(sender, recipient, amount);
         } else {
             // default tax is 0.5% of every transfer
@@ -243,12 +243,9 @@ contract AboatToken is ERC20, Liquify {
             require(taxAmount == reDistributionAmount + liquidityAmount + devAmount + donationAmount, "ABOAT::transfer: Fee amount does not equal the split fee amount");
             uint256 sendAmount = amount.sub(taxAmount);
             require(amount == sendAmount + taxAmount, "ABOAT::transfer: amount to send with tax amount exceeds maximum possible amount");
-            super._transfer(sender, address(this), devAmount + donationAmount);
-            uint256 donationBnb = swapForEth(donationAmount);
-            uint256 devBnb = swapForEth(devAmount);
-            TransferHelper.safeTransferETH(_devWallet, devBnb);
-            TransferHelper.safeTransferETH(_donationWallet, donationBnb);
             super._transfer(sender, address(this), liquidityAmount);
+            super._transfer(sender, recipient, sendAmount);
+            super._transfer(sender, _devWallet, devAmount);
             super._transfer(sender, _donationWallet, donationAmount);
             super._transfer(sender, _rewardWallet, reDistributionAmount);
             amount = sendAmount;
