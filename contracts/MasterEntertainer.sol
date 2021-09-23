@@ -13,6 +13,7 @@ import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 import "./AboatToken.sol";
 import "./libraries/TransferHelper.sol";
 import "./libraries/PriceTicker.sol";
+import "./interfaces/IMasterChefContractor.sol";
 
 contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
     using SafeMath for uint256;
@@ -28,11 +29,13 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
     }
     
     struct PoolInfo {
+        IMasterChefContractor contractor;
         IERC20 lpToken;
         uint256 allocPoint;
         uint256 lastRewardBlock;
         uint256 accCoinPerShare;
         uint16 depositFee; 
+        uint256 pid;
     }
     
     /* =====================================================================================================================
@@ -98,7 +101,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         }
     }
     
-    function setPoolVariables(uint256 _pid, uint256 _allocPoint, uint16 _depositFee, bool _withUpdate) public onlyOwner {
+    function setPoolVariables(uint256 _pid, uint256 _allocPoint, uint256 _newPid, uint16 _depositFee, bool _withUpdate) public onlyOwner {
         require(_depositFee <= 10000,"set: deposit fee can't exceed 10 %");
         if (_withUpdate) {
             massUpdatePools();
@@ -106,6 +109,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         totalAllocPoint = totalAllocPoint.sub(poolInfos[_pid].allocPoint).add(_allocPoint);
         poolInfos[_pid].allocPoint = _allocPoint;
         poolInfos[_pid].depositFee = _depositFee;
+        poolInfos[_pid].pid = _newPid;
     }
     
     function updateEmissionRate(uint256 _coinPerBlock) public onlyOwner locked("updateEmissionRate") {
@@ -148,7 +152,12 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
     
     function getLpSupply(uint256 _pid) public view returns (uint256) {
         PoolInfo storage pool = poolInfos[_pid];
-        uint256 lpSupply = pool.lpToken.balanceOf(address(this));
+        uint256 lpSupply = 0;
+        if(address(pool.contractor) == address(0)) {
+            lpSupply = pool.lpToken.balanceOf(address(this));
+        } else {
+            lpSupply = pool.lpToken.balanceOf(address(pool.contractor.getMasterChef()));
+        }
         return lpSupply;
     }
     
@@ -169,7 +178,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
     /* =====================================================================================================================
                                                     Utility Functions
     ===================================================================================================================== */
-    function add(uint256 _allocPoint, IERC20 _lpToken, uint16 _depositFee, bool _withUpdate) public onlyOwner nonDuplicated(_lpToken) {
+    function add(uint256 _allocPoint, IERC20 _lpToken, uint256 _pid, uint16 _depositFee, IMasterChefContractor _contractor,  bool _withUpdate) public onlyOwner nonDuplicated(_lpToken) {
         require(_depositFee <= 10000,"set: deposit fee can't exceed 10 %");
         if(_withUpdate) {
             massUpdatePools();
@@ -183,7 +192,9 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
                 allocPoint: _allocPoint,
                 lastRewardBlock: lastRewardBlock,
                 accCoinPerShare: 0,
-                depositFee: _depositFee
+                depositFee: _depositFee,
+                pid: _pid,
+                contractor: _contractor
             })
         );
         emit NewPool(address(_lpToken), poolInfos.length - 1);
@@ -220,13 +231,18 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
             }
         }
         if(_amount > 0) {
-            pool.lpToken.safeTransferFrom(address(msg.sender), address(this), _amount);
+            uint256 realAmount = _amount;
+            pool.lpToken.safeTransferFrom(address(msg.sender), address(pool.contractor) != address(0) ? address(pool.contractor) : address(this), _amount);
             if(pool.depositFee > 0) {
                 uint256 depositFeeAmount = _amount.mul(pool.depositFee).div(10000);
                 pool.lpToken.safeTransfer(feeAddress, depositFeeAmount);
-                user.amount = user.amount.add(_amount).sub(depositFeeAmount);
+                realAmount = _amount.sub(depositFeeAmount);
+                user.amount = user.amount.add(realAmount);
             } else {
                 user.amount = user.amount.add(_amount);
+            }
+            if(address(pool.contractor) != address(0)) {
+                pool.contractor.deposit(pool.pid, realAmount);
             }
         }
         user.rewardDebt = user.amount.mul(pool.accCoinPerShare).div(1e12);
@@ -248,7 +264,11 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         }
         if(_amount > 0) {
             user.amount = user.amount.sub(_amount);
-            pool.lpToken.safeTransfer(address(msg.sender), _amount);
+            if(address(pool.contractor) != address(0)) {
+                pool.contractor.withdraw(pool.pid, _amount, pool.lpToken, address(msg.sender));
+            } else {
+                pool.lpToken.safeTransfer(address(msg.sender), _amount);
+            }
         }
         user.rewardDebt = user.amount.mul(pool.accCoinPerShare).div(1e12);
         if(pool.lpToken == coin) {
