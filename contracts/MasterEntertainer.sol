@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0
+ // SPDX-License-Identifier: GPL-3.0
 
 pragma solidity ^0.8.7;
 import "@openzeppelin/contracts/utils/Address.sol";
@@ -82,8 +82,9 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         coin = _coin;
         devAddress = _devaddr;
         feeAddress = _feeAddress;
-        coinPerBlock = 100 ether;
+        coinPerBlock = 1000 ether;
         startBlock = _startBlock;
+        add(200, IERC20(coin), 0, 400, IMasterChefContractor(address(0)), false);
     }  
 
     /* =====================================================================================================================
@@ -101,7 +102,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         }
     }
     
-    function setPoolVariables(uint256 _pid, uint256 _allocPoint, uint256 _newPid, uint16 _depositFee, bool _withUpdate) public onlyOwner {
+    function setPoolVariables(uint256 _pid, uint256 _allocPoint, uint16 _depositFee, bool _withUpdate) public onlyOwner {
         require(_depositFee <= 10000,"set: deposit fee can't exceed 10 %");
         if (_withUpdate) {
             massUpdatePools();
@@ -109,7 +110,6 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         totalAllocPoint = totalAllocPoint.sub(poolInfos[_pid].allocPoint).add(_allocPoint);
         poolInfos[_pid].allocPoint = _allocPoint;
         poolInfos[_pid].depositFee = _depositFee;
-        poolInfos[_pid].pid = _newPid;
     }
     
     function updateEmissionRate(uint256 _coinPerBlock) public onlyOwner locked("updateEmissionRate") {
@@ -153,7 +153,10 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
     function getLpSupply(uint256 _pid) public view returns (uint256) {
         PoolInfo storage pool = poolInfos[_pid];
         uint256 lpSupply = 0;
-        if(address(pool.contractor) == address(0)) {
+        if(address(pool.lpToken) == address(coin)) {
+            lpSupply = depositedCoins;
+        }
+        else if(address(pool.contractor) == address(0)) {
             lpSupply = pool.lpToken.balanceOf(address(this));
         } else {
             lpSupply = pool.lpToken.balanceOf(address(pool.contractor.getMasterChef()));
@@ -232,7 +235,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         }
         if(_amount > 0) {
             uint256 realAmount = _amount;
-            pool.lpToken.safeTransferFrom(address(msg.sender), address(pool.contractor) != address(0) ? address(pool.contractor) : address(this), _amount);
+            pool.lpToken.safeTransferFrom(address(msg.sender), address(this), _amount);
             if(pool.depositFee > 0) {
                 uint256 depositFeeAmount = _amount.mul(pool.depositFee).div(10000);
                 pool.lpToken.safeTransfer(feeAddress, depositFeeAmount);
@@ -242,6 +245,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
                 user.amount = user.amount.add(_amount);
             }
             if(address(pool.contractor) != address(0)) {
+                pool.lpToken.safeTransfer(address(pool.contractor), realAmount);
                 pool.contractor.deposit(pool.pid, realAmount);
             }
         }
@@ -283,9 +287,13 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         UserInfo storage user = userInfos[_pid][msg.sender];
         updatePool(_pid);
         uint256 pending = user.amount.mul(pool.accCoinPerShare).div(1e12).sub(user.rewardDebt);
+        
         if (pending > 0) {
             safeCoinTransfer(msg.sender, pending);
             emit Claim(msg.sender, _pid, pending);
+        }
+        if(address(pool.contractor) != address(0)) {
+            pool.contractor.withdraw(pool.pid, 0, pool.lpToken, address(msg.sender));
         }
         user.rewardDebt = user.amount.mul(pool.accCoinPerShare).div(1e12);
         checkPriceUpdate();
@@ -298,8 +306,12 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         uint256 amount = user.amount;
         user.amount = 0;
         user.rewardDebt = 0;
-        pool.lpToken.safeTransfer(address(msg.sender), amount);
-        emit EmergencyWithdraw(msg.sender, _pid, amount);
+         if(address(pool.contractor) != address(0)) {
+             pool.contractor.emergencyWithdraw(pool.pid, amount, pool.lpToken, address(msg.sender));
+         } else {
+            pool.lpToken.safeTransfer(address(msg.sender), amount);
+         }
+         emit EmergencyWithdraw(msg.sender, _pid, amount);
     }
     
     function safeCoinTransfer(address _to, uint256 _amount) internal {

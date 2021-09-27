@@ -25,7 +25,7 @@ contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
                                                         Variables
     ===================================================================================================================== */
     IPancakeSwapMasterChef masterChef;
-    IERC20 rewardToken;
+    IERC20 public rewardToken;
     
     AboatToken public coin;
     address public rewardSystem;
@@ -33,6 +33,8 @@ contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
     IUniswapV2Router02 router;
     
     MasterEntertainer masterEntertainer;
+    
+    uint256 constant MIN_AMOUNT_TO_SWAP = 1 ether;
     /* =====================================================================================================================
                                                         Events
     ===================================================================================================================== */
@@ -79,40 +81,56 @@ contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
     function recieve() public payable { }
     
     function deposit(uint256 _pid, uint256 _amount) external override {
+        _deposit(_pid, _amount);
+    }
+    
+    function _deposit(uint256 _pid, uint256 _amount) internal {
         if(_pid == 0) {
-            enterStake(_amount);
+            enterStake(_pid, _amount);
         } else {
             masterChef.deposit(_pid, _amount);
         }
         swapToken();
     }
     
-    function withdraw(uint256 _pid, uint256 _amount, IERC20 token, address sender) external override {
+    function withdraw(uint256 _pid, uint256 _amount, IERC20 _token, address _sender) external override {
         if(_pid == 0) {
-            leaveStake(_amount);
+            leaveStake(_pid, _amount, _token, _sender);
         } else {
             masterChef.withdraw(_pid, _amount);
         }
-        token.safeTransfer(sender, _amount);
+        _token.safeTransfer(_sender, _amount);
         swapToken();
     }
     
-    function enterStake(uint256 _amount) internal {
+    
+    function emergencyWithdraw(uint256 _pid, uint256 _amount, IERC20 _token, address _sender) external override {
+        masterChef.withdrawWithoutRewards(_pid);
+        _token.safeTransfer(_sender, _amount);
+        _deposit(_pid, _token.balanceOf(address(this)));
         
     }
     
-    function leaveStake(uint256 _amount) internal {
-        
+    function enterStake(uint256 _pid, uint256 _amount) internal {
+        masterChef.deposit(_pid, _amount);
+        swapToken();
+    }
+    
+    function leaveStake(uint256 _pid, uint256 _amount, IERC20 _token, address _sender) internal {
+        masterChef.withdraw(_pid, _amount);
+        _token.safeTransfer(_sender, _amount);
+        swapToken();
     }
     
     
     function swapToken() internal {
         uint256 balanceToSwap = rewardToken.balanceOf(address(this));
-        if(balanceToSwap > 0) {
+        if(balanceToSwap >= MIN_AMOUNT_TO_SWAP) {
             uint256 ethBalance = swapForEth(rewardToken, balanceToSwap);
             swapEthForTokens(ethBalance);
+            safeCoinTransfer(rewardSystem, coin.balanceOf(address(this)));
         }
-        safeCoinTransfer(rewardSystem, coin.balanceOf(address(this)));
+       
     }
     
     function swapForEth(IERC20 token, uint256 amount) internal returns (uint256) {
