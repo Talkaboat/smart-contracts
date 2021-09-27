@@ -63,7 +63,7 @@ contract AboatToken is ERC20, Liquify {
     
     constructor() ERC20("Aboat Token", "ABOAT") {
         // Token distribution: https://documentation.talkaboat.online/tokenomics/talkaboat-basics.html
-        mint(msg.sender, 600000000000 ether);
+        mint(msg.sender, 500000000000 ether);
         excludeFromAll(msg.sender);
     }
     
@@ -84,7 +84,7 @@ contract AboatToken is ERC20, Liquify {
         maxDistribution = _newDistribution;
         emit MaxDistributionChanged(_newDistribution);
     }
-    
+     
     function setMaxAccBalance(uint16 maxBalance) public onlyMaintainerOrOwner {
         uint16 previousMaxBalance = maxAccBalance;
         maxAccBalance = maxBalance;
@@ -120,7 +120,7 @@ contract AboatToken is ERC20, Liquify {
     }
     
     function getTaxFee(address _sender) public view returns (uint256) {
-        //Anti-Bot: The first Blocks will have a 99% fee
+        //Anti-Bot: The first Blocks will have a 90% fee
         if(isHighFeeActive) {
             return 9000;
         }
@@ -132,12 +132,12 @@ contract AboatToken is ERC20, Liquify {
             return minimumTransferTaxRate;
         }
         uint tax = balance * 100000 / totalSupply();
-        if(tax >= maximumTransferTaxRate) {
-            return maximumTransferTaxRate;
-        } else if(tax <= minimumTransferTaxRate) {
+        if(tax > 100) {
+            uint realTax = minimumTransferTaxRate + tax - 100;
+            return realTax > maximumTransferTaxRate ? maximumTransferTaxRate : realTax;
+        } else {
             return minimumTransferTaxRate;
         }
-        return tax;
     }
     
     function liquidityPair() public view returns (address) {
@@ -228,13 +228,13 @@ contract AboatToken is ERC20, Liquify {
             && sender != _liquidityPair
             && !_excludedFromFeesAsSender[sender]
             && sender != owner()
-            && sender != maintainer()) {
+            && sender != maintainer()
+            && !isLiquifyActive) {
             swapAndLiquify();
         }
         if ((!isHighFeeActive || sender == maintainer() || sender == owner() || _excludedFromFeesAsSender[sender] && _excludedFromFeesAsReciever[recipient]) && (recipient == address(0) || maximumTransferTaxRate == 0 || _excludedFromFeesAsReciever[recipient] || _excludedFromFeesAsSender[sender])) {
             super._transfer(sender, recipient, amount);
         } else {
-            // default tax is 0.5% of every transfer
             uint256 taxAmount = amount.mul(getTaxFee(sender)).div(10000);
             uint256 reDistributionAmount = taxAmount.mul(reDistributionRate).div(100);
             uint256 devAmount = taxAmount.mul(devRate).div(100);
@@ -243,10 +243,8 @@ contract AboatToken is ERC20, Liquify {
             require(taxAmount == reDistributionAmount + liquidityAmount + devAmount + donationAmount, "ABOAT::transfer: Fee amount does not equal the split fee amount");
             uint256 sendAmount = amount.sub(taxAmount);
             require(amount == sendAmount + taxAmount, "ABOAT::transfer: amount to send with tax amount exceeds maximum possible amount");
-            super._transfer(sender, address(this), liquidityAmount);
+            super._transfer(sender, address(this), liquidityAmount + devAmount + donationAmount);
             super._transfer(sender, recipient, sendAmount);
-            super._transfer(sender, _devWallet, devAmount);
-            super._transfer(sender, _donationWallet, donationAmount);
             super._transfer(sender, _rewardWallet, reDistributionAmount);
             amount = sendAmount;
             totalFeesPaid += taxAmount;

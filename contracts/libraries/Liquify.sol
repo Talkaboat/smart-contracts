@@ -20,16 +20,17 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
     /* =====================================================================================================================
                                                         Variables
     ===================================================================================================================== */
-    bool public isLiquifyDisabled = true;
     //Transfer Tax
     //Transfer tax rate in basis points. default 100 => 1%
-    uint16 public minimumTransferTaxRate = 100;
-    uint16 public maximumTransferTaxRate = 500;
+    uint16 public minimumTransferTaxRate = 500;
+    uint16 public maximumTransferTaxRate = 1000;
     uint16 public constant MAXIMUM_TAX = 1000;
     
     uint16 public reDistributionRate = 40;
     uint16 public devRate = 20;
     uint16 public donationRate = 10;
+    
+    bool public isLiquifyActive = false;
     
     uint256 public _minAmountToLiquify = 100000 ether;
     
@@ -73,7 +74,7 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
     constructor() {
         excludeFromAll(_devWallet);
         excludeFromAll(_donationWallet);
-        updateRouter(0x10ED43C718714eb63d5aA57B78B54704E256024E);
+        updateRouter(0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3);
     }
     
     /* =====================================================================================================================
@@ -108,14 +109,6 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
     /* =====================================================================================================================
                                                     Utility Functions
     ===================================================================================================================== */ 
-    function disableLiquify() public onlyMaintainerOrOwner {
-        isLiquifyDisabled = true;
-    }
-    
-    function enableLiquify() public onlyMaintainerOrOwner {
-        isLiquifyDisabled = false;
-    }
-    
     function excludeFromAll(address _excludee) public onlyMaintainerOrOwner {
         _excludedFromFeesAsSender[_excludee] = true;
         _excludedFromFeesAsReciever[_excludee] = true;
@@ -188,18 +181,18 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
     * @dev Function to swap the stored liquidity fee tokens and add them to the current liquidity pool
     */
     function swapAndLiquify() public taxFree {
-        if(isLiquifyDisabled) {
+        if(isLiquifyActive) {
             return;
         }
+        isLiquifyActive = true;
         uint256 contractTokenBalance = balanceOf(address(this));
         if (contractTokenBalance >= _minAmountToLiquify) {
             IUniswapV2Pair pair = IUniswapV2Pair(_liquidityPair);
-            // only min amount to liquify
-            uint256 liquifyAmount = _minAmountToLiquify;
-
+            uint256 devTax = _minAmountToLiquify.mul(devRate).div(100);
+            uint256 donationTax = _minAmountToLiquify.mul(donationRate).div(100);
             // split the liquify amount into halves
-            uint256 half = liquifyAmount.div(2);
-            uint256 otherHalf = liquifyAmount.sub(half);
+            uint256 half = _minAmountToLiquify.sub(devTax).sub(donationTax).div(2);
+            uint256 otherHalfWithTax = _minAmountToLiquify.sub(half);
 
 
             address tokenA = address(pair.token0());
@@ -209,13 +202,13 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
             bool isWeth = tokenA == _router.WETH() || tokenB == _router.WETH();
             uint256 newBalance = 0;
             if(isWeth) {
-               swapAndLiquifyEth(half, otherHalf);
+               swapAndLiquifyEth(otherHalfWithTax, half);
             } else {
-                swapAndLiquifyTokens(tokenA != address(this) ? tokenA : tokenB, half, otherHalf);
+                swapAndLiquifyTokens(tokenA != address(this) ? tokenA : tokenB, otherHalfWithTax, half);
             }
-
-            emit SwapAndLiquify(half, newBalance, otherHalf);
+            emit SwapAndLiquify(otherHalfWithTax, newBalance, half);
         }
+        isLiquifyActive = false;
     }
     
     function swapForEth(uint256 amount) private returns (uint256) {
@@ -224,12 +217,19 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
         // swap tokens for ETH
         swapTokensForEth(amount);
         
+        uint256 newBalance = address(this).balance.sub(initialBalance);
+        uint256 devTax = newBalance.mul(devRate).div(100);
+        uint256 donationTax = newBalance.mul(donationRate).div(100);
+        TransferHelper.safeTransferETH(_devWallet, devTax);
+        TransferHelper.safeTransferETH(_donationWallet, donationTax);
         return address(this).balance.sub(initialBalance);
     }
     
     function swapAndLiquifyEth(uint256 half, uint256 otherHalf) private {
         uint256 newBalance = swapForEth(half);
-        addLiquidityETH(otherHalf, newBalance);
+        if(newBalance > 0) {
+            addLiquidityETH(otherHalf, newBalance);
+        }
     }
     
     function swapAndLiquifyTokens(address tokenB, uint256 half, uint256 otherHalf) private {
@@ -250,7 +250,7 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
             0, // accept any amount of ETH
             path,
             address(this),
-            0
+            block.timestamp
         );
     }
 
@@ -269,7 +269,7 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
             0, // accept any amount of ETH
             path,
             address(this),
-            0
+            block.timestamp
         );
     }
     
@@ -285,7 +285,7 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
             0,
             0,
             address(0),
-            0
+            block.timestamp
         );
     }
 
@@ -301,7 +301,7 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
             0, // slippage is unavoidable
             0, // slippage is unavoidable
             address(0), //burn lp token
-            0
+            block.timestamp
         );
     }
     
