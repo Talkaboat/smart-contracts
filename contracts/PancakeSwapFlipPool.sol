@@ -75,6 +75,11 @@ contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
         return address(masterChef);
     }
     
+    function getLiquidity(uint256 _pid) external override view returns (uint256) {
+        (uint256 amount, ) = masterChef.userInfo(_pid, address(this));
+        return amount;
+    }
+    
     /* =====================================================================================================================
                                                     Utility Functions
     ===================================================================================================================== */

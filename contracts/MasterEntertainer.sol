@@ -26,6 +26,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
     struct UserInfo {
         uint256 amount;
         uint256 rewardDebt;
+        uint256 lastDeposit;
     }
     
     struct PoolInfo {
@@ -36,6 +37,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         uint256 accCoinPerShare;
         uint16 depositFee; 
         uint256 pid;
+        uint256 lockPeriod;
     }
     
     /* =====================================================================================================================
@@ -69,6 +71,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
     event SetDevAddress(address indexed user, address indexed newAddress);
     event SetMaxEmissionIncrease(address indexed user, uint16 newMaxEmissionIncrease);
     event UpdateEmissionRate(address indexed user, uint256 newEmission);
+    event UpdatedPool(uint256 indexed pid);
     
     /* =====================================================================================================================
                                                         Modifier
@@ -82,9 +85,12 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         coin = _coin;
         devAddress = _devaddr;
         feeAddress = _feeAddress;
-        coinPerBlock = 1000 ether;
+        coinPerBlock = 4000 ether;
         startBlock = _startBlock;
-        add(200, IERC20(coin), 0, 400, IMasterChefContractor(address(0)), false);
+        add(100, IERC20(coin), 0, 400, IMasterChefContractor(address(0)), 30, false);
+        add(150, IERC20(coin), 0, 300, IMasterChefContractor(address(0)), 90, false);
+        add(250, IERC20(coin), 0, 200, IMasterChefContractor(address(0)), 180, false);
+        add(400, IERC20(coin), 0, 100, IMasterChefContractor(address(0)), 360, false);
     }  
 
     /* =====================================================================================================================
@@ -102,7 +108,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         }
     }
     
-    function setPoolVariables(uint256 _pid, uint256 _allocPoint, uint16 _depositFee, bool _withUpdate) public onlyOwner {
+    function setPoolVariables(uint256 _pid, uint256 _allocPoint, uint16 _depositFee, uint256 _lockPeriod, bool _withUpdate) public onlyOwner {
         require(_depositFee <= 10000,"set: deposit fee can't exceed 10 %");
         if (_withUpdate) {
             massUpdatePools();
@@ -110,6 +116,8 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         totalAllocPoint = totalAllocPoint.sub(poolInfos[_pid].allocPoint).add(_allocPoint);
         poolInfos[_pid].allocPoint = _allocPoint;
         poolInfos[_pid].depositFee = _depositFee;
+        poolInfos[_pid].lockPeriod = _lockPeriod * 1 days;
+        emit UpdatedPool(_pid);
     }
     
     function updateEmissionRate(uint256 _coinPerBlock) public onlyOwner locked("updateEmissionRate") {
@@ -181,7 +189,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
     /* =====================================================================================================================
                                                     Utility Functions
     ===================================================================================================================== */
-    function add(uint256 _allocPoint, IERC20 _lpToken, uint256 _pid, uint16 _depositFee, IMasterChefContractor _contractor,  bool _withUpdate) public onlyOwner nonDuplicated(_lpToken) {
+    function add(uint256 _allocPoint, IERC20 _lpToken, uint256 _pid, uint16 _depositFee, IMasterChefContractor _contractor, uint256 _lockPeriod,  bool _withUpdate) public onlyOwner nonDuplicated(_lpToken) {
         require(_depositFee <= 10000,"set: deposit fee can't exceed 10 %");
         if(_withUpdate) {
             massUpdatePools();
@@ -197,7 +205,8 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
                 accCoinPerShare: 0,
                 depositFee: _depositFee,
                 pid: _pid,
-                contractor: _contractor
+                contractor: _contractor,
+                lockPeriod: _lockPeriod * 1 days
             })
         );
         emit NewPool(address(_lpToken), poolInfos.length - 1);
@@ -234,6 +243,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
             }
         }
         if(_amount > 0) {
+            user.lastDeposit = block.timestamp;
             uint256 realAmount = _amount;
             pool.lpToken.safeTransferFrom(address(msg.sender), address(this), _amount);
             if(pool.depositFee > 0) {
@@ -261,6 +271,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         PoolInfo storage pool = poolInfos[_pid];
         UserInfo storage user = userInfos[_pid][msg.sender];
         require(user.amount >= _amount, "withdraw: withdraw amount can't exceed users deposited amount");
+        require(user.lastDeposit <= block.timestamp, "ABOAT::withdraw: Can't withdraw before locking period ended.");
         updatePool(_pid);
         uint256 pending = user.amount.mul(pool.accCoinPerShare).div(1e12).sub(user.rewardDebt);
         if(pending > 0) {

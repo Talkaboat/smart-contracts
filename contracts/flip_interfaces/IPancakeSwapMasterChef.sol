@@ -7,4 +7,5 @@ interface IPancakeSwapMasterChef {
     function enterStaking(uint256 _amount) external;
     function leaveStaking(uint256 _amount) external;
     function withdrawWithoutRewards(uint256 _pid) external;
+    function userInfo(uint256 _pid, address _user) external view returns (uint256, uint256);
 }
