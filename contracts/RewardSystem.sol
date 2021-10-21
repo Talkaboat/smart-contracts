@@ -5,11 +5,14 @@ pragma solidity ^0.8.7;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "./libraries/TransferHelper.sol";
 import "./libraries/TimeLock.sol";
 
 contract RewardSystem is Ownable, TimeLock {
     using Address for address;
+    using SafeMath for uint256;
     
     /* =====================================================================================================================
                                                         Variables
@@ -18,13 +21,17 @@ contract RewardSystem is Ownable, TimeLock {
     uint256 public _gasCost = 2100000000000000;
     
     address public _oracleWallet = 0x76049b7cAaB30b8bBBdcfF3A1059d9147dBF7B19;
+    address public _devWallet = 0x2EA9CA0ca8043575f2189CFF9897B575b0c7e857;
     
     IERC20 public _rewardToken;
+    
+    IUniswapV2Router02 public _router = IUniswapV2Router02(0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3);
     
     /* =====================================================================================================================
                                                         Events
     ===================================================================================================================== */
     event SentRewards(address indexed owner, uint256 indexed amount);
+    event SentRewardsETH(address indexed owner, uint256 indexed amount, uint256 indexed fees);
     event EnabledRewards(address indexed owner);
     event ChangedGasCost(uint256 indexed previousCost, uint256 indexed cost);
     event ChangedRewardToken(address indexed previousToken, address indexed newToken);
@@ -32,6 +39,7 @@ contract RewardSystem is Ownable, TimeLock {
     
     constructor(IERC20 rewardToken) {
         _rewardToken = rewardToken;
+        changeOracleWallet(_oracleWallet);
     }
     
     receive() external payable {}
@@ -65,6 +73,10 @@ contract RewardSystem is Ownable, TimeLock {
         emit ChangedOracleWallet(previous, _oracleWallet);
     }
     
+    function setRouter(IUniswapV2Router02 router) public onlyOwner {
+        _router = router;
+    }
+    
     /* =====================================================================================================================
                                                     Utility Functions
     ===================================================================================================================== */ 
@@ -78,6 +90,37 @@ contract RewardSystem is Ownable, TimeLock {
                 emit SentRewards(addresses[index], amounts[index]);
             }
         }
+    }
+    
+    function sendRewardsAsEth(uint256 amount, address user) public onlyOwner {
+        require(address(_router) != address(0), "ABOAT::sendRewardsAsEth: There is no router defined to swap tokens for eth");
+        uint256 ethBalance = address(this).balance;
+        swapTokensForEth(amount);
+        uint256 userEth = ethBalance.sub(address(this).balance).sub(_gasCost);
+        TransferHelper.safeTransferETH(_oracleWallet, _gasCost);
+        uint256 fee = userEth.mul(10).div(100);
+        userEth = userEth.sub(fee);
+        TransferHelper.safeTransferETH(_devWallet, fee);
+        TransferHelper.safeTransferETH(user, userEth);
+        emit SentRewardsETH(user, userEth, fee);
+    }
+    
+    function swapTokensForEth(uint256 tokenAmount) private {
+        // generate the Enodi pair path of token -> weth
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = _router.WETH();
+
+        _rewardToken.approve(address(_router), tokenAmount);
+
+        // make the swap
+        _router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tokenAmount,
+            0, // accept any amount of ETH
+            path,
+            address(_rewardToken),
+            block.timestamp
+        );
     }
     
     function sendRewardAndAdjustGasCost(uint256[] memory amounts, address[] memory addresses, uint256 gasCost) public onlyOwner {
