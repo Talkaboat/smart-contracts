@@ -102,7 +102,7 @@ contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
     
     function withdraw(uint256 _pid, uint256 _amount, address _sender) external override onlyMasterEntertainer {
         if(_pid == 0) {
-            leaveStake(_pid, _amount, _sender);
+            leaveStake(_pid, _amount);
         } else {
             masterChef.withdraw(_pid, _amount);
         }
@@ -115,7 +115,7 @@ contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
     
     function emergencyWithdraw(uint256 _pid, uint256 _amount, address _sender) external override onlyMasterEntertainer {
         masterChef.withdrawWithoutRewards(_pid);
-        stakeToken.safeTransfer(_sender, _amount);
+        safeTokenTransfer(stakeToken, _sender, _amount);
         _deposit(_pid, stakeToken.balanceOf(address(this)));
         
     }
@@ -125,22 +125,20 @@ contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
         swapToken();
     }
     
-    function leaveStake(uint256 _pid, uint256 _amount, address _sender) internal {
+    function leaveStake(uint256 _pid, uint256 _amount) internal {
         masterChef.withdraw(_pid, _amount);
-        stakeToken.safeTransfer(_sender, _amount);
-        swapToken();
     }
     
     
     function swapToken() internal {
         uint256 balanceToSwap = rewardToken.balanceOf(address(this));
         if(address(router) == address(0) && balanceToSwap > 0) {
-            safeflipTokenTransfer(masterEntertainer, balanceToSwap);
+            safeTokenTransfer(rewardToken, masterEntertainer, balanceToSwap);
         }
         else if(balanceToSwap >= MIN_AMOUNT_TO_SWAP) {
             uint256 ethBalance = swapForEth(rewardToken, balanceToSwap);
             swapEthForTokens(ethBalance);
-            safeflipTokenTransfer(rewardSystem, flipToken.balanceOf(address(this)));
+            safeTokenTransfer(flipToken, rewardSystem, flipToken.balanceOf(address(this)));
         }
        
     }
@@ -185,15 +183,15 @@ contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
         );
     }
     
-    function safeflipTokenTransfer(address _to, uint256 _amount) internal {
-        uint256 flipTokenBalance = flipToken.balanceOf(address(this));
+    function safeTokenTransfer(IERC20 token, address _to, uint256 _amount) internal {
+        uint256 tokenBalance = token.balanceOf(address(this));
         bool transferSuccess = false;
-        if (_amount > flipTokenBalance) {
-            transferSuccess = flipToken.transfer(_to, flipTokenBalance);
+        if (_amount > tokenBalance) {
+            transferSuccess = token.transfer(_to, tokenBalance);
         } else {
-            transferSuccess = flipToken.transfer(_to, _amount);
+            transferSuccess = token.transfer(_to, _amount);
         }
-        require(transferSuccess, "ABOAT::safeFlipTokenTransfer: transfer failed");
+        require(transferSuccess, "ABOAT::safeTokenTransfer: transfer failed");
     }
     
 }
