@@ -44,7 +44,6 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
                                                         Variables
     ===================================================================================================================== */
     mapping(uint256 => mapping(address => UserInfo)) public userInfos;
-    mapping(IERC20 => bool) public poolExistence;
     
     PoolInfo[] public poolInfos;
     
@@ -76,10 +75,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
     /* =====================================================================================================================
                                                         Modifier
     ===================================================================================================================== */
-    modifier nonDuplicated(IERC20 _lpToken) {
-        require(poolExistence[_lpToken] == false, "nonDuplicated: lpToken already exists in poolInfos");
-        _;
-    }
+
     
     constructor(AboatToken _coin, address _devaddr, address _feeAddress, uint256 _startBlock) {
         coin = _coin;
@@ -87,6 +83,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         feeAddress = _feeAddress;
         coinPerBlock = 4000 ether;
         startBlock = _startBlock;
+        //alloc point, lp token, pool id, deposit fee, contractor, lock period in days, update pool
         add(100, IERC20(coin), 0, 400, IMasterChefContractor(address(0)), 30, false);
         add(150, IERC20(coin), 0, 300, IMasterChefContractor(address(0)), 90, false);
         add(250, IERC20(coin), 0, 200, IMasterChefContractor(address(0)), 180, false);
@@ -189,14 +186,13 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
     /* =====================================================================================================================
                                                     Utility Functions
     ===================================================================================================================== */
-    function add(uint256 _allocPoint, IERC20 _lpToken, uint256 _pid, uint16 _depositFee, IMasterChefContractor _contractor, uint256 _lockPeriod,  bool _withUpdate) public onlyOwner nonDuplicated(_lpToken) {
+    function add(uint256 _allocPoint, IERC20 _lpToken, uint256 _pid, uint16 _depositFee, IMasterChefContractor _contractor, uint256 _lockPeriod,  bool _withUpdate) public onlyOwner {
         require(_depositFee <= 10000,"set: deposit fee can't exceed 10 %");
         if(_withUpdate) {
             massUpdatePools();
         }
         uint256 lastRewardBlock = block.number > startBlock ? block.number : startBlock;
         totalAllocPoint = totalAllocPoint.add(_allocPoint);
-        poolExistence[_lpToken] = true;
         poolInfos.push(
             PoolInfo({
                 lpToken: _lpToken,
@@ -255,7 +251,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
                 user.amount = user.amount.add(_amount);
             }
             if(address(pool.contractor) != address(0)) {
-                pool.lpToken.safeTransfer(address(pool.contractor), realAmount);
+                pool.lpToken.approve(address(pool.contractor), realAmount);
                 pool.contractor.deposit(pool.pid, realAmount);
             }
         }
@@ -271,16 +267,16 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         PoolInfo storage pool = poolInfos[_pid];
         UserInfo storage user = userInfos[_pid][msg.sender];
         require(user.amount >= _amount, "withdraw: withdraw amount can't exceed users deposited amount");
-        require(user.lastDeposit <= block.timestamp, "ABOAT::withdraw: Can't withdraw before locking period ended.");
         updatePool(_pid);
         uint256 pending = user.amount.mul(pool.accCoinPerShare).div(1e12).sub(user.rewardDebt);
         if(pending > 0) {
             safeCoinTransfer(msg.sender, pending);
         }
         if(_amount > 0) {
+            require(user.lastDeposit.add(pool.lockPeriod) <= block.timestamp, "ABOAT::withdraw: Can't withdraw before locking period ended.");
             user.amount = user.amount.sub(_amount);
             if(address(pool.contractor) != address(0)) {
-                pool.contractor.withdraw(pool.pid, _amount, pool.lpToken, address(msg.sender));
+                pool.contractor.withdraw(pool.pid, _amount, address(msg.sender));
             } else {
                 pool.lpToken.safeTransfer(address(msg.sender), _amount);
             }
@@ -304,7 +300,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
             emit Claim(msg.sender, _pid, pending);
         }
         if(address(pool.contractor) != address(0)) {
-            pool.contractor.withdraw(pool.pid, 0, pool.lpToken, address(msg.sender));
+            pool.contractor.withdraw(pool.pid, 0, address(msg.sender));
         }
         user.rewardDebt = user.amount.mul(pool.accCoinPerShare).div(1e12);
         checkPriceUpdate();
@@ -314,11 +310,12 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
     function withdrawWithoutRewards(uint256 _pid) public nonReentrant {
         PoolInfo storage pool = poolInfos[_pid];
         UserInfo storage user = userInfos[_pid][msg.sender];
+        require(user.lastDeposit.add(pool.lockPeriod) <= block.timestamp, "ABOAT::withdrawWithoutRewards: Can't withdraw before locking period ended.");
         uint256 amount = user.amount;
         user.amount = 0;
         user.rewardDebt = 0;
          if(address(pool.contractor) != address(0)) {
-             pool.contractor.emergencyWithdraw(pool.pid, amount, pool.lpToken, address(msg.sender));
+             pool.contractor.emergencyWithdraw(pool.pid, amount, address(msg.sender));
          } else {
             pool.lpToken.safeTransfer(address(msg.sender), amount);
          }

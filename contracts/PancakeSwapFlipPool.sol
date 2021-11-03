@@ -10,11 +10,9 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
-import "./AboatToken.sol";
 import "./interfaces/IMasterChefContractor.sol";
 import "./flip_interfaces/IPancakeSwapMasterChef.sol";
 import "./libraries/TransferHelper.sol";
-import "./MasterEntertainer.sol";
 
 contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
     using SafeMath for uint256;
@@ -25,14 +23,14 @@ contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
                                                         Variables
     ===================================================================================================================== */
     IPancakeSwapMasterChef masterChef;
-    IERC20 public rewardToken;
-    
-    AboatToken public coin;
+    IERC20 public rewardToken;  //What do we get as reward?
+    IERC20 public stakeToken;   //What do we stake to get reward?
+    IERC20 public flipToken;    //What do we swap to?
     address public rewardSystem;
     
     IUniswapV2Router02 router;
     
-    MasterEntertainer masterEntertainer;
+    address masterEntertainer;
     
     uint256 constant MIN_AMOUNT_TO_SWAP = 1 ether;
     /* =====================================================================================================================
@@ -46,14 +44,12 @@ contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
     
     
     
-    constructor(AboatToken _coin, IUniswapV2Router02 _router, IERC20 _rewardToken, address _rewardSystem, IPancakeSwapMasterChef _masterChef, MasterEntertainer _masterEntertainer) {
-        coin = _coin;
-        router = _router;
+    constructor(IERC20 _flipToken, IERC20 _rewardToken, address _rewardSystem, IPancakeSwapMasterChef _masterChef, address _masterEntertainer) {
+        flipToken = _flipToken;
         masterChef = _masterChef;
         masterEntertainer = _masterEntertainer;
         rewardToken = _rewardToken;
         rewardSystem = _rewardSystem;
-        rewardToken.approve(address(masterEntertainer), type(uint256).max);
     }  
 
     /* =====================================================================================================================
@@ -90,6 +86,8 @@ contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
     }
     
     function _deposit(uint256 _pid, uint256 _amount) internal {
+        stakeToken.safeTransferFrom(address(msg.sender), address(this), _amount);
+        stakeToken.approve(address(masterChef), _amount);
         if(_pid == 0) {
             enterStake(_pid, _amount);
         } else {
@@ -98,21 +96,21 @@ contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
         swapToken();
     }
     
-    function withdraw(uint256 _pid, uint256 _amount, IERC20 _token, address _sender) external override {
+    function withdraw(uint256 _pid, uint256 _amount, address _sender) external override {
         if(_pid == 0) {
-            leaveStake(_pid, _amount, _token, _sender);
+            leaveStake(_pid, _amount, _sender);
         } else {
             masterChef.withdraw(_pid, _amount);
         }
-        _token.safeTransfer(_sender, _amount);
+        stakeToken.safeTransfer(_sender, _amount);
         swapToken();
     }
     
     
-    function emergencyWithdraw(uint256 _pid, uint256 _amount, IERC20 _token, address _sender) external override {
+    function emergencyWithdraw(uint256 _pid, uint256 _amount, address _sender) external override {
         masterChef.withdrawWithoutRewards(_pid);
-        _token.safeTransfer(_sender, _amount);
-        _deposit(_pid, _token.balanceOf(address(this)));
+        stakeToken.safeTransfer(_sender, _amount);
+        _deposit(_pid, stakeToken.balanceOf(address(this)));
         
     }
     
@@ -121,19 +119,22 @@ contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
         swapToken();
     }
     
-    function leaveStake(uint256 _pid, uint256 _amount, IERC20 _token, address _sender) internal {
+    function leaveStake(uint256 _pid, uint256 _amount, address _sender) internal {
         masterChef.withdraw(_pid, _amount);
-        _token.safeTransfer(_sender, _amount);
+        stakeToken.safeTransfer(_sender, _amount);
         swapToken();
     }
     
     
     function swapToken() internal {
         uint256 balanceToSwap = rewardToken.balanceOf(address(this));
-        if(balanceToSwap >= MIN_AMOUNT_TO_SWAP) {
+        if(address(router) == address(0)) {
+            safeflipTokenTransfer(masterEntertainer, balanceToSwap);
+        }
+        else if(balanceToSwap >= MIN_AMOUNT_TO_SWAP) {
             uint256 ethBalance = swapForEth(rewardToken, balanceToSwap);
             swapEthForTokens(ethBalance);
-            safeCoinTransfer(rewardSystem, coin.balanceOf(address(this)));
+            safeflipTokenTransfer(rewardSystem, flipToken.balanceOf(address(this)));
         }
        
     }
@@ -168,7 +169,7 @@ contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
     function swapEthForTokens(uint256 tokenAmount) internal {
         address[] memory path = new address[](2);
         path[0] = router.WETH();
-        path[1] = address(coin);
+        path[1] = address(flipToken);
         
         router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: tokenAmount}(
             0, // accept any amount of ETH
@@ -178,15 +179,15 @@ contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
         );
     }
     
-    function safeCoinTransfer(address _to, uint256 _amount) internal {
-        uint256 coinBalance = coin.balanceOf(address(this));
+    function safeflipTokenTransfer(address _to, uint256 _amount) internal {
+        uint256 flipTokenBalance = flipToken.balanceOf(address(this));
         bool transferSuccess = false;
-        if (_amount > coinBalance) {
-            transferSuccess = coin.transfer(_to, coinBalance);
+        if (_amount > flipTokenBalance) {
+            transferSuccess = flipToken.transfer(_to, flipTokenBalance);
         } else {
-            transferSuccess = coin.transfer(_to, _amount);
+            transferSuccess = flipToken.transfer(_to, _amount);
         }
-        require(transferSuccess, "safeCoinTransfer: transfer failed");
+        require(transferSuccess, "safeflipTokenTransfer: transfer failed");
     }
     
 }
