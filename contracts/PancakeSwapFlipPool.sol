@@ -41,13 +41,17 @@ contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
     /* =====================================================================================================================
                                                         Modifier
     ===================================================================================================================== */
+    modifier onlyMasterEntertainer {
+        require(address(msg.sender) == masterEntertainer, "ABOAT::onlyMasterEntertainer: Only the master entertainer is allowed to call this method!");
+        _;
+    }
     
     
-    
-    constructor(IERC20 _flipToken, IERC20 _rewardToken, address _rewardSystem, IPancakeSwapMasterChef _masterChef, address _masterEntertainer) {
+    constructor(IERC20 _flipToken, IERC20 _stakeToken, IERC20 _rewardToken, address _rewardSystem, IPancakeSwapMasterChef _masterChef, address _masterEntertainer) {
         flipToken = _flipToken;
         masterChef = _masterChef;
         masterEntertainer = _masterEntertainer;
+        stakeToken = _stakeToken;
         rewardToken = _rewardToken;
         rewardSystem = _rewardSystem;
     }  
@@ -81,7 +85,7 @@ contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
     ===================================================================================================================== */
     function recieve() public payable { }
     
-    function deposit(uint256 _pid, uint256 _amount) external override {
+    function deposit(uint256 _pid, uint256 _amount) external override onlyMasterEntertainer {
         _deposit(_pid, _amount);
     }
     
@@ -96,18 +100,20 @@ contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
         swapToken();
     }
     
-    function withdraw(uint256 _pid, uint256 _amount, address _sender) external override {
+    function withdraw(uint256 _pid, uint256 _amount, address _sender) external override onlyMasterEntertainer {
         if(_pid == 0) {
             leaveStake(_pid, _amount, _sender);
         } else {
             masterChef.withdraw(_pid, _amount);
         }
-        stakeToken.safeTransfer(_sender, _amount);
+        if(_amount > 0) {
+            stakeToken.safeTransfer(_sender, _amount);
+        }
         swapToken();
     }
     
     
-    function emergencyWithdraw(uint256 _pid, uint256 _amount, address _sender) external override {
+    function emergencyWithdraw(uint256 _pid, uint256 _amount, address _sender) external override onlyMasterEntertainer {
         masterChef.withdrawWithoutRewards(_pid);
         stakeToken.safeTransfer(_sender, _amount);
         _deposit(_pid, stakeToken.balanceOf(address(this)));
@@ -128,7 +134,7 @@ contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
     
     function swapToken() internal {
         uint256 balanceToSwap = rewardToken.balanceOf(address(this));
-        if(address(router) == address(0)) {
+        if(address(router) == address(0) && balanceToSwap > 0) {
             safeflipTokenTransfer(masterEntertainer, balanceToSwap);
         }
         else if(balanceToSwap >= MIN_AMOUNT_TO_SWAP) {
@@ -187,7 +193,7 @@ contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
         } else {
             transferSuccess = flipToken.transfer(_to, _amount);
         }
-        require(transferSuccess, "safeflipTokenTransfer: transfer failed");
+        require(transferSuccess, "ABOAT::safeFlipTokenTransfer: transfer failed");
     }
     
 }
