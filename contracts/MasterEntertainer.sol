@@ -35,7 +35,8 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         uint256 allocPoint;
         uint256 lastRewardBlock;
         uint256 accCoinPerShare;
-        uint16 depositFee; 
+        uint16 depositFee;
+        uint256 depositedCoins;
         uint256 pid;
         uint256 lockPeriod;
     }
@@ -105,7 +106,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         }
     }
     
-    function setPoolVariables(uint256 _pid, uint256 _allocPoint, uint16 _depositFee, uint256 _lockPeriod, bool _withUpdate) public onlyOwner {
+    function setPoolVariables(uint256 _pid, uint256 _allocPoint, uint16 _depositFee, uint256 _lockPeriod, bool _withUpdate) public onlyOwner locked("setPoolVariables") {
         require(_depositFee <= 10000,"set: deposit fee can't exceed 10 %");
         if (_withUpdate) {
             massUpdatePools();
@@ -155,16 +156,21 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         return newEmissionRate;
     }
     
+    function getDepositFee(uint256 _pid) public view returns (uint256) {
+        PoolInfo storage pool = poolInfos[_pid];
+        uint256 depositFee = pool.depositFee;
+        if(address(pool.contractor) != address(0)) {
+            //depositFee = depositFee.add(pool.contractor.getDepositFee());
+        }
+    }
+    
     function getLpSupply(uint256 _pid) public view returns (uint256) {
         PoolInfo storage pool = poolInfos[_pid];
         uint256 lpSupply = 0;
-        if(address(pool.lpToken) == address(coin)) {
-            lpSupply = depositedCoins;
-        }
-        else if(address(pool.contractor) == address(0)) {
-            lpSupply = pool.lpToken.balanceOf(address(this));
+        if(address(pool.lpToken) == address(coin) || address(pool.contractor) != address(0)) {
+            lpSupply = pool.depositedCoins;
         } else {
-            lpSupply = pool.lpToken.balanceOf(address(pool.contractor.getMasterChef()));
+            lpSupply =  pool.lpToken.balanceOf(address(this));
         }
         return lpSupply;
     }
@@ -174,7 +180,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         PoolInfo storage pool = poolInfos[_pid];
         UserInfo storage user = userInfos[_pid][_user];
         uint256 accCoinPerShare = pool.accCoinPerShare;
-        uint256 lpSupply = pool.lpToken.balanceOf(address(this));
+        uint256 lpSupply = getLpSupply(_pid);
         if (block.number > pool.lastRewardBlock && lpSupply != 0) {
             uint256 multiplier = block.number.sub(pool.lastRewardBlock);
             uint256 coinReward = multiplier.mul(coinPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
@@ -200,6 +206,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
                 lastRewardBlock: lastRewardBlock,
                 accCoinPerShare: 0,
                 depositFee: _depositFee,
+                depositedCoins: 0,
                 pid: _pid,
                 contractor: _contractor,
                 lockPeriod: _lockPeriod * 1 days
@@ -213,7 +220,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         if (block.number <= pool.lastRewardBlock) {
             return;
         }
-        uint256 lpSupply = pool.lpToken.balanceOf(address(this));
+        uint256 lpSupply = getLpSupply(_pid);
         if (lpSupply == 0) {
             pool.lastRewardBlock = block.number;
             return;
@@ -250,6 +257,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
             } else {
                 user.amount = user.amount.add(_amount);
             }
+            pool.depositedCoins = pool.depositedCoins.add(realAmount);
             if(address(pool.contractor) != address(0)) {
                 pool.lpToken.approve(address(pool.contractor), realAmount);
                 pool.contractor.deposit(pool.pid, realAmount);
@@ -280,6 +288,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
             } else {
                 pool.lpToken.safeTransfer(address(msg.sender), _amount);
             }
+           pool.depositedCoins = pool.depositedCoins.sub(_amount);
         }
         user.rewardDebt = user.amount.mul(pool.accCoinPerShare).div(1e12);
         if(pool.lpToken == coin) {
@@ -312,6 +321,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         UserInfo storage user = userInfos[_pid][msg.sender];
         require(user.lastDeposit.add(pool.lockPeriod) <= block.timestamp, "ABOAT::withdrawWithoutRewards: Can't withdraw before locking period ended.");
         uint256 amount = user.amount;
+        pool.depositedCoins = pool.depositedCoins.sub(amount);
         user.amount = 0;
         user.rewardDebt = 0;
          if(address(pool.contractor) != address(0)) {

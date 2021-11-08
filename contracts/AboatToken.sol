@@ -70,7 +70,7 @@ contract AboatToken is ERC20, Liquify {
     /* =====================================================================================================================
                                                         Set Functions
     ===================================================================================================================== */
-    function setMasterEntertainer(address _newMasterEntertainer) public onlyMaintainerOrOwner locked("masterEntertainer") {
+    function setMasterEntertainer(address _newMasterEntertainer) public onlyOwner {
         require(_newMasterEntertainer != address(_masterEntertainer) && _newMasterEntertainer != address(0), "ABOAT::setMasterEntertainer: Master entertainer can\'t equal previous master entertainer or zero address");
         address previousEntertainer = address(_masterEntertainer);
         _masterEntertainer = MasterEntertainer(_newMasterEntertainer);

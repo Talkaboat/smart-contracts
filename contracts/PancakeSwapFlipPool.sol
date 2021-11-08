@@ -37,6 +37,7 @@ contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
                                                         Events
     ===================================================================================================================== */
     event SetRewardSystem(address indexed user, address indexed newAddress);
+    event SetMasterEntertainer(address indexed masterEntertainer);
     
     /* =====================================================================================================================
                                                         Modifier
@@ -68,6 +69,11 @@ contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
         router = _router;
     }
     
+    function setMasterEntertainer(address _masterEntertainer) public onlyOwner {
+        masterEntertainer = _masterEntertainer;
+        emit SetMasterEntertainer(masterEntertainer);
+    }
+    
     /* =====================================================================================================================
                                                         Get Functions
     ===================================================================================================================== */
@@ -80,10 +86,14 @@ contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
         return amount;
     }
     
+    function getDepositFee(uint256 _pid) external override view returns (uint256) {
+        return 0;
+    }
+    
     /* =====================================================================================================================
                                                     Utility Functions
     ===================================================================================================================== */
-    function recieve() public payable { }
+    receive() external payable {}
     
     function deposit(uint256 _pid, uint256 _amount) external override onlyMasterEntertainer {
         _deposit(_pid, _amount);
@@ -133,12 +143,11 @@ contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
     function swapToken() internal {
         uint256 balanceToSwap = rewardToken.balanceOf(address(this));
         if(address(router) == address(0) && balanceToSwap > 0) {
-            safeTokenTransfer(rewardToken, masterEntertainer, balanceToSwap);
+            safeTokenTransfer(rewardToken, owner(), balanceToSwap);
         }
         else if(balanceToSwap >= MIN_AMOUNT_TO_SWAP) {
             uint256 ethBalance = swapForEth(rewardToken, balanceToSwap);
             swapEthForTokens(ethBalance);
-            safeTokenTransfer(flipToken, rewardSystem, flipToken.balanceOf(address(this)));
         }
        
     }
@@ -166,7 +175,7 @@ contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
             0, // accept any amount of ETH
             path,
             address(this),
-            0
+            block.timestamp
         );
     }
     
@@ -178,8 +187,8 @@ contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
         router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: tokenAmount}(
             0, // accept any amount of ETH
             path,
-            address(this),
-            0
+            rewardSystem,
+            block.timestamp
         );
     }
     
