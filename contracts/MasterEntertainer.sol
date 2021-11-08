@@ -160,8 +160,9 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         PoolInfo storage pool = poolInfos[_pid];
         uint256 depositFee = pool.depositFee;
         if(address(pool.contractor) != address(0)) {
-            //depositFee = depositFee.add(pool.contractor.getDepositFee());
+            depositFee = depositFee.add(pool.contractor.getDepositFee(pool.pid));
         }
+        return depositFee;
     }
     
     function getLpSupply(uint256 _pid) public view returns (uint256) {
