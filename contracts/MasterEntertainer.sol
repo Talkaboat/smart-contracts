@@ -116,7 +116,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
         totalAllocPoint = totalAllocPoint.sub(poolInfos[_pid].allocPoint).add(_allocPoint);
         poolInfos[_pid].allocPoint = _allocPoint;
         poolInfos[_pid].depositFee = _depositFee;
-        poolInfos[_pid].lockPeriod = _lockPeriod * 1 days;
+        poolInfos[_pid].lockPeriod = _lockPeriod;
         poolInfos[_pid].isCoinLp = _isCoinLp;
         emit UpdatedPool(_pid);
     }
@@ -233,7 +233,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
                 depositedCoins: 0,
                 pid: _pid,
                 contractor: _contractor,
-                lockPeriod: _lockPeriod * 1 days,
+                lockPeriod: _lockPeriod,
                 isCoinLp: _isCoinLp
             })
         );
@@ -306,7 +306,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
             safeCoinTransfer(msg.sender, pending);
         }
         if(_amount > 0) {
-            require(user.lastDeposit.add(pool.lockPeriod) <= block.timestamp, "ABOAT::withdraw: Can't withdraw before locking period ended.");
+            require(user.lastDeposit.add(pool.lockPeriod * 1 days) <= block.timestamp, "ABOAT::withdraw: Can't withdraw before locking period ended.");
             user.amount = user.amount.sub(_amount);
             if(address(pool.contractor) != address(0)) {
                 pool.contractor.withdraw(pool.pid, _amount, address(msg.sender));
@@ -344,7 +344,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
     function withdrawWithoutRewards(uint256 _pid) public nonReentrant {
         PoolInfo storage pool = poolInfos[_pid];
         UserInfo storage user = userInfos[_pid][msg.sender];
-        require(user.lastDeposit.add(pool.lockPeriod) <= block.timestamp, "ABOAT::withdrawWithoutRewards: Can't withdraw before locking period ended.");
+        require(user.lastDeposit.add(pool.lockPeriod * 1 days) <= block.timestamp, "ABOAT::withdrawWithoutRewards: Can't withdraw before locking period ended.");
         uint256 amount = user.amount;
         pool.depositedCoins = pool.depositedCoins.sub(amount);
         user.amount = 0;
