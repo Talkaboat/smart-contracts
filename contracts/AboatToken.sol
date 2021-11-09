@@ -11,7 +11,8 @@ import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "./libraries/TransferHelper.sol";
 import "./libraries/Liquify.sol";
-import "./MasterEntertainer.sol";
+import "./interfaces/IMasterEntertainer.sol";
+import "./interfaces/IAboatToken.sol";
 
 
 
@@ -19,7 +20,7 @@ import "./MasterEntertainer.sol";
  * @dev We use the maintainer for to hold the ability to change important attributes
  * @dev Owner will be given to the MasterEntertainer contract to mint new tokens for staking/yield farming
 */
-contract AboatToken is ERC20, Liquify {
+contract AboatToken is ERC20, Liquify, IAboatToken {
     using SafeMath for uint256;
     using Address for address;
     
@@ -41,7 +42,7 @@ contract AboatToken is ERC20, Liquify {
     uint public liquidityFeesPaid;
     
     //Master Entertainer contract
-    MasterEntertainer public _masterEntertainer;
+    IMasterEntertainer public _masterEntertainer;
     
     mapping(address => bool) private blacklisted;
     mapping(address => bool) private requestedWhitelist;
@@ -73,7 +74,7 @@ contract AboatToken is ERC20, Liquify {
     function setMasterEntertainer(address _newMasterEntertainer) public onlyOwner {
         require(_newMasterEntertainer != address(_masterEntertainer) && _newMasterEntertainer != address(0), "ABOAT::setMasterEntertainer: Master entertainer can\'t equal previous master entertainer or zero address");
         address previousEntertainer = address(_masterEntertainer);
-        _masterEntertainer = MasterEntertainer(_newMasterEntertainer);
+        _masterEntertainer = IMasterEntertainer(_newMasterEntertainer);
         excludeFromAll(_newMasterEntertainer);
         transferOwnership(_newMasterEntertainer);
         emit MasteEntertainerTransferred(previousEntertainer, _newMasterEntertainer);
@@ -119,12 +120,16 @@ contract AboatToken is ERC20, Liquify {
         return requestedWhitelist[user];
     }
     
+    function getBalanceOf(address user) public view returns (uint256) {
+        return balanceOf(user);
+    }
+    
     function getTaxFee(address _sender) public view returns (uint256) {
         //Anti-Bot: The first Blocks will have a 90% fee
         if(isHighFeeActive) {
             return 9000;
         }
-        uint balance = balanceOf(_sender);
+        uint balance = getBalanceOf(_sender);
         if(balance > totalSupply()) {
             return maximumTransferTaxRate;
         }
@@ -140,7 +145,7 @@ contract AboatToken is ERC20, Liquify {
         }
     }
     
-    function liquidityPair() public view returns (address) {
+    function liquidityPair() override external view returns (address) {
         return _liquidityPair;
     }
     
@@ -155,8 +160,12 @@ contract AboatToken is ERC20, Liquify {
         return IERC20(getLiquidityTokenAddress()).balanceOf(address(this));
     }
     
-    function canMintNewCoins(uint256 _amount) public view returns (bool) {
+    function canMintNewCoins(uint256 _amount) override external view returns (bool) {
         return totalSupply() + _amount <= maxDistribution;
+    }
+    
+    function getCirculatingSupply() public view returns (uint256) {
+        return totalSupply().sub(balanceOf(_rewardWallet));
     }
     
     /* =====================================================================================================================
@@ -200,8 +209,12 @@ contract AboatToken is ERC20, Liquify {
         TransferHelper.safeTransferETH(msg.sender, address(this).balance);
     }
     
+    function requestMint(address _recipient, uint256 _amount) override external onlyOwner {
+        mint(_recipient, _amount);
+    }
+    
     function mint(address _to, uint256 _amount) public onlyOwner {
-        require(canMintNewCoins(_amount), "ABOAT::mint: Can't mint more aboat token than maxDistribution allows");
+        require(totalSupply() + _amount <= maxDistribution, "ABOAT::mint: Can't mint more aboat token than maxDistribution allows");
         _mint(_to, _amount);
     }
     
@@ -257,7 +270,7 @@ contract AboatToken is ERC20, Liquify {
 
     function checkPriceUpdate() public {
         if(address(_masterEntertainer) != address(0)) {
-            _masterEntertainer.checkPriceUpdate();
+            _masterEntertainer.updatePrice();
         }
     }
 }

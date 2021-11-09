@@ -32,13 +32,14 @@ contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
     
     address masterEntertainer;
     
-    uint256 constant MIN_AMOUNT_TO_SWAP = 1 ether;
+    uint256 public minAmountToSwap = 1 ether;
     /* =====================================================================================================================
                                                         Events
     ===================================================================================================================== */
     event SetRewardSystem(address indexed user, address indexed newAddress);
     event SetMasterEntertainer(address indexed masterEntertainer);
-    
+    event SetRouter(address indexed router);
+    event SetMinAmountToSwap(uint256 amount);
     /* =====================================================================================================================
                                                         Modifier
     ===================================================================================================================== */
@@ -67,11 +68,17 @@ contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
     
     function setRouter(IUniswapV2Router02 _router) public onlyOwner {
         router = _router;
+        emit SetRouter(address(router));
     }
     
     function setMasterEntertainer(address _masterEntertainer) public onlyOwner {
         masterEntertainer = _masterEntertainer;
         emit SetMasterEntertainer(masterEntertainer);
+    }
+    
+    function setMinAmountToSwap(uint256 _minAmount) public onlyOwner {
+        minAmountToSwap = _minAmount;
+        emit SetMinAmountToSwap(minAmountToSwap);
     }
     
     /* =====================================================================================================================
@@ -145,7 +152,7 @@ contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
         if(address(router) == address(0) && balanceToSwap > 0) {
             safeTokenTransfer(rewardToken, owner(), balanceToSwap);
         }
-        else if(balanceToSwap >= MIN_AMOUNT_TO_SWAP) {
+        else if(balanceToSwap >= minAmountToSwap) {
             uint256 ethBalance = swapForEth(rewardToken, balanceToSwap);
             swapEthForTokens(ethBalance);
         }

@@ -10,12 +10,13 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
-import "./AboatToken.sol";
 import "./libraries/TransferHelper.sol";
 import "./libraries/PriceTicker.sol";
 import "./interfaces/IMasterChefContractor.sol";
+import "./interfaces/IMasterEntertainer.sol";
+import "./interfaces/IAboatToken.sol";
 
-contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
+contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEntertainer {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using Address for address;    
@@ -39,6 +40,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         uint256 depositedCoins;
         uint256 pid;
         uint256 lockPeriod;
+        bool isCoinLp;
     }
     
     /* =====================================================================================================================
@@ -78,17 +80,17 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
     ===================================================================================================================== */
 
     
-    constructor(AboatToken _coin, address _devaddr, address _feeAddress, uint256 _startBlock) {
-        coin = _coin;
+    constructor(address _coin, address _devaddr, address _feeAddress, uint256 _startBlock) {
+        coin = IAboatToken(_coin);
         devAddress = _devaddr;
         feeAddress = _feeAddress;
         coinPerBlock = 4000 ether;
         startBlock = _startBlock;
         //alloc point, lp token, pool id, deposit fee, contractor, lock period in days, update pool
-        add(100, IERC20(coin), 0, 400, IMasterChefContractor(address(0)), 30, false);
-        add(150, IERC20(coin), 0, 300, IMasterChefContractor(address(0)), 90, false);
-        add(250, IERC20(coin), 0, 200, IMasterChefContractor(address(0)), 180, false);
-        add(400, IERC20(coin), 0, 100, IMasterChefContractor(address(0)), 360, false);
+        add(100, IERC20(_coin), 0, 400, IMasterChefContractor(address(0)), 30, true, false);
+        add(150, IERC20(_coin), 0, 300, IMasterChefContractor(address(0)), 90, true, false);
+        add(250, IERC20(_coin), 0, 200, IMasterChefContractor(address(0)), 180, true, false);
+        add(400, IERC20(_coin), 0, 100, IMasterChefContractor(address(0)), 360, true, false);
     }  
 
     /* =====================================================================================================================
@@ -106,7 +108,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         }
     }
     
-    function setPoolVariables(uint256 _pid, uint256 _allocPoint, uint16 _depositFee, uint256 _lockPeriod, bool _withUpdate) public onlyOwner locked("setPoolVariables") {
+    function setPoolVariables(uint256 _pid, uint256 _allocPoint, uint16 _depositFee, uint256 _lockPeriod, bool _isCoinLp, bool _withUpdate) public onlyOwner locked("setPoolVariables") {
         require(_depositFee <= 10000,"set: deposit fee can't exceed 10 %");
         if (_withUpdate) {
             massUpdatePools();
@@ -115,6 +117,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         poolInfos[_pid].allocPoint = _allocPoint;
         poolInfos[_pid].depositFee = _depositFee;
         poolInfos[_pid].lockPeriod = _lockPeriod * 1 days;
+        poolInfos[_pid].isCoinLp = _isCoinLp;
         emit UpdatedPool(_pid);
     }
     
@@ -176,6 +179,26 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         return lpSupply;
     }
     
+    function getBalanceOf(address _user) external view returns (uint256) {
+        uint256 length = poolInfos.length;
+        uint256 balance = 0;
+        for (uint256 pid = 0; pid < length; ++pid) {
+            PoolInfo storage pool = poolInfos[pid];
+            address poolToken = address(pool.lpToken);
+            address coinAddress = address(coin);
+            if(poolToken == coinAddress || pool.isCoinLp) {
+                UserInfo storage userInfo = userInfos[pid][_user];
+                if(poolToken == coinAddress) {
+                    balance = balance.add(userInfo.amount);    
+                } else {
+                    balance = balance.add(getCoinAmount(poolToken, coinAddress, userInfo.amount));
+                }
+            }
+            
+        }
+        return balance;
+    }
+    
     function pendingCoin(uint256 _pid, address _user) external view returns (uint256)
     {
         PoolInfo storage pool = poolInfos[_pid];
@@ -193,7 +216,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
     /* =====================================================================================================================
                                                     Utility Functions
     ===================================================================================================================== */
-    function add(uint256 _allocPoint, IERC20 _lpToken, uint256 _pid, uint16 _depositFee, IMasterChefContractor _contractor, uint256 _lockPeriod,  bool _withUpdate) public onlyOwner {
+    function add(uint256 _allocPoint, IERC20 _lpToken, uint256 _pid, uint16 _depositFee, IMasterChefContractor _contractor, uint256 _lockPeriod, bool _isCoinLp,  bool _withUpdate) public onlyOwner {
         require(_depositFee <= 10000,"set: deposit fee can't exceed 10 %");
         if(_withUpdate) {
             massUpdatePools();
@@ -210,7 +233,8 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
                 depositedCoins: 0,
                 pid: _pid,
                 contractor: _contractor,
-                lockPeriod: _lockPeriod * 1 days
+                lockPeriod: _lockPeriod * 1 days,
+                isCoinLp: _isCoinLp
             })
         );
         emit NewPool(address(_lpToken), poolInfos.length - 1);
@@ -229,8 +253,8 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
         uint256 multiplier = block.number.sub(pool.lastRewardBlock);
         uint256 coinReward = multiplier.mul(coinPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
         if(canClaimRewards(coinReward + coinReward.div(10))) {
-            coin.mint(devAddress, coinReward.div(10));
-            coin.mint(address(this), coinReward);
+            coin.requestMint(devAddress, coinReward.div(10));
+            coin.requestMint(address(this), coinReward);
         }
         pool.accCoinPerShare = pool.accCoinPerShare.add(coinReward.mul(1e12).div(lpSupply));
         pool.lastRewardBlock = block.number;
@@ -265,7 +289,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
             }
         }
         user.rewardDebt = user.amount.mul(pool.accCoinPerShare).div(1e12);
-        if(pool.lpToken == coin) {
+        if(address(pool.lpToken) == address(coin)) {
             depositedCoins += _amount;
         }
         emit Deposit(msg.sender, _pid, _amount);
@@ -292,7 +316,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
            pool.depositedCoins = pool.depositedCoins.sub(_amount);
         }
         user.rewardDebt = user.amount.mul(pool.accCoinPerShare).div(1e12);
-        if(pool.lpToken == coin) {
+        if(address(pool.lpToken) == address(coin)) {
             depositedCoins -= _amount;
         }
         emit Withdraw(msg.sender, _pid, _amount);
@@ -334,14 +358,19 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker {
     }
     
     function safeCoinTransfer(address _to, uint256 _amount) internal {
-        uint256 coinBalance = coin.balanceOf(address(this)).sub(depositedCoins);
+        IERC20 token = IERC20(address(coin));
+        uint256 coinBalance = token.balanceOf(address(this)).sub(depositedCoins);
         bool transferSuccess = false;
         if (_amount > coinBalance) {
-            transferSuccess = coin.transfer(_to, coinBalance);
+            transferSuccess = token.transfer(_to, coinBalance);
         } else {
-            transferSuccess = coin.transfer(_to, _amount);
+            transferSuccess = token.transfer(_to, _amount);
         }
         require(transferSuccess, "safeCoinTransfer: transfer failed");
+    }
+    
+    function updatePrice() override external {
+        checkPriceUpdate();
     }
     
     function checkPriceUpdate() override public {
