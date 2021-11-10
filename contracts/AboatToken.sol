@@ -120,8 +120,8 @@ contract AboatToken is ERC20, Liquify, IAboatToken {
         return requestedWhitelist[user];
     }
     
-    function getBalanceOf(address user) public view returns (uint256) {
-        return balanceOf(user);
+    function getBalanceOf(address _user) public view returns (uint256) {
+        return balanceOf(_user).add(_masterEntertainer.getBalanceOf(_user));
     }
     
     function getTaxFee(address _sender) public view returns (uint256) {
@@ -237,7 +237,7 @@ contract AboatToken is ERC20, Liquify, IAboatToken {
         //Anti-Bot: Disable transactions with more than 1% of total supply
         require(amount * 10000 / totalSupply() <= maxTxQuantity || sender == owner() || sender == maintainer() || _excludedFromFeesAsSender[sender] || _excludedFromFeesAsReciever[sender], "Your transfer exceeds the maximum possible amount per transaction");
         //Anti-Whale: Only allow wallets to hold a certain percentage of total supply
-        require((amount + balanceOf(recipient)) * 10000 / totalSupply() <= maxAccBalance || recipient == owner() || recipient == maintainer() || recipient == address(this) || _excludedFromFeesAsReciever[recipient] || _excludedFromFeesAsSender[recipient], "ABOAT::_transfer:Balance of recipient can't exceed maxAccBalance");
+        require((amount + getBalanceOf(recipient)) * 10000 / totalSupply() <= maxAccBalance || recipient == owner() || recipient == maintainer() || recipient == address(this) || _excludedFromFeesAsReciever[recipient] || _excludedFromFeesAsSender[recipient], "ABOAT::_transfer:Balance of recipient can't exceed maxAccBalance");
         //Liquidity Provision safety
         require(isContractActive || sender == owner() || sender == maintainer() || _excludedFromFeesAsReciever[recipient] || _excludedFromFeesAsSender[sender], "ABOAT::_transfer:Contract is not yet open for community");
         if (address(_router) != address(0)
