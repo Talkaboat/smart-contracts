@@ -12,7 +12,6 @@ import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "./libraries/TransferHelper.sol";
 import "./libraries/Liquify.sol";
 import "./interfaces/IMasterEntertainer.sol";
-import "./interfaces/IAboatToken.sol";
 
 
 
@@ -20,7 +19,7 @@ import "./interfaces/IAboatToken.sol";
  * @dev We use the maintainer for to hold the ability to change important attributes
  * @dev Owner will be given to the MasterEntertainer contract to mint new tokens for staking/yield farming
 */
-contract AboatToken is ERC20, Liquify, IAboatToken {
+contract AboatToken is ERC20, Liquify {
     using SafeMath for uint256;
     using Address for address;
     
@@ -145,7 +144,7 @@ contract AboatToken is ERC20, Liquify, IAboatToken {
         }
     }
     
-    function liquidityPair() override external view returns (address) {
+    function liquidityPair() public view returns (address) {
         return _liquidityPair;
     }
     
@@ -160,7 +159,7 @@ contract AboatToken is ERC20, Liquify, IAboatToken {
         return IERC20(getLiquidityTokenAddress()).balanceOf(address(this));
     }
     
-    function canMintNewCoins(uint256 _amount) override external view returns (bool) {
+    function canMintNewCoins(uint256 _amount) public view returns (bool) {
         return totalSupply() + _amount <= maxDistribution;
     }
     
@@ -211,10 +210,6 @@ contract AboatToken is ERC20, Liquify, IAboatToken {
     function claimExceedingETH() public onlyMaintainerOrOwner {
         require(address(this).balance > 0, "ABOAT::claimExceedingLiquidityTokenBalance: No exceeding balance");
         TransferHelper.safeTransferETH(msg.sender, address(this).balance);
-    }
-    
-    function requestMint(address _recipient, uint256 _amount) override external onlyOwner {
-        mint(_recipient, _amount);
     }
     
     function mint(address _to, uint256 _amount) public onlyOwner {

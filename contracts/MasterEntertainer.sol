@@ -14,7 +14,7 @@ import "./libraries/TransferHelper.sol";
 import "./libraries/PriceTicker.sol";
 import "./interfaces/IMasterChefContractor.sol";
 import "./interfaces/IMasterEntertainer.sol";
-import "./interfaces/IAboatToken.sol";
+import "./AboatToken.sol";
 
 contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEntertainer {
     using SafeMath for uint256;
@@ -80,17 +80,17 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
     ===================================================================================================================== */
 
     
-    constructor(address _coin, address _devaddr, address _feeAddress, uint256 _startBlock) {
-        coin = IAboatToken(_coin);
+    constructor(AboatToken _coin, address _devaddr, address _feeAddress, uint256 _startBlock) {
+        coin = AboatToken(_coin);
         devAddress = _devaddr;
         feeAddress = _feeAddress;
         coinPerBlock = 4000 ether;
         startBlock = _startBlock;
         //alloc point, lp token, pool id, deposit fee, contractor, lock period in days, update pool
-        add(100, IERC20(_coin), 0, 400, IMasterChefContractor(address(0)), 30, true, false);
-        add(150, IERC20(_coin), 0, 300, IMasterChefContractor(address(0)), 90, true, false);
-        add(250, IERC20(_coin), 0, 200, IMasterChefContractor(address(0)), 180, true, false);
-        add(400, IERC20(_coin), 0, 100, IMasterChefContractor(address(0)), 360, true, false);
+        add(100, _coin, 0, 400, IMasterChefContractor(address(0)), 30, true, false);
+        add(150, _coin, 0, 300, IMasterChefContractor(address(0)), 90, true, false);
+        add(250, _coin, 0, 200, IMasterChefContractor(address(0)), 180, true, false);
+        add(400, _coin, 0, 100, IMasterChefContractor(address(0)), 360, true, false);
     }  
 
     /* =====================================================================================================================
@@ -179,7 +179,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
         return lpSupply;
     }
     
-    function getBalanceOf(address _user) external view returns (uint256) {
+    function getBalanceOf(address _user) override external view returns (uint256) {
         uint256 length = poolInfos.length;
         uint256 balance = 0;
         for (uint256 pid = 0; pid < length; ++pid) {
@@ -253,8 +253,8 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
         uint256 multiplier = block.number.sub(pool.lastRewardBlock);
         uint256 coinReward = multiplier.mul(coinPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
         if(canClaimRewards(coinReward + coinReward.div(10))) {
-            coin.requestMint(devAddress, coinReward.div(10));
-            coin.requestMint(address(this), coinReward);
+            coin.mint(devAddress, coinReward.div(10));
+            coin.mint(address(this), coinReward);
         }
         pool.accCoinPerShare = pool.accCoinPerShare.add(coinReward.mul(1e12).div(lpSupply));
         pool.lastRewardBlock = block.number;
@@ -270,9 +270,10 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
                 safeCoinTransfer(msg.sender, pending);
             }
         }
+        uint256 realAmount = _amount;
         if(_amount > 0) {
             user.lastDeposit = block.timestamp;
-            uint256 realAmount = _amount;
+           
             pool.lpToken.safeTransferFrom(address(msg.sender), address(this), _amount);
             if(pool.depositFee > 0) {
                 uint256 depositFeeAmount = _amount.mul(pool.depositFee).div(10000);
@@ -290,7 +291,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
         }
         user.rewardDebt = user.amount.mul(pool.accCoinPerShare).div(1e12);
         if(address(pool.lpToken) == address(coin)) {
-            depositedCoins += _amount;
+            depositedCoins = depositedCoins.add(realAmount);
         }
         emit Deposit(msg.sender, _pid, _amount);
         checkPriceUpdate();
@@ -317,7 +318,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
         }
         user.rewardDebt = user.amount.mul(pool.accCoinPerShare).div(1e12);
         if(address(pool.lpToken) == address(coin)) {
-            depositedCoins -= _amount;
+            depositedCoins = depositedCoins.sub(_amount);
         }
         emit Withdraw(msg.sender, _pid, _amount);
         checkPriceUpdate();
@@ -358,15 +359,12 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
     }
     
     function safeCoinTransfer(address _to, uint256 _amount) internal {
-        IERC20 token = IERC20(address(coin));
-        uint256 coinBalance = token.balanceOf(address(this)).sub(depositedCoins);
-        bool transferSuccess = false;
+        uint256 coinBalance = coin.balanceOf(address(this)).sub(depositedCoins);
         if (_amount > coinBalance) {
-            transferSuccess = token.transfer(_to, coinBalance);
+            IERC20(coin).safeTransfer(_to, coinBalance);
         } else {
-            transferSuccess = token.transfer(_to, _amount);
+            IERC20(coin).safeTransfer(_to, _amount);
         }
-        require(transferSuccess, "safeCoinTransfer: transfer failed");
     }
     
     function updatePrice() override external {
