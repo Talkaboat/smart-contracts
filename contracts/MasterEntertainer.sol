@@ -355,6 +355,9 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
          } else {
             pool.lpToken.safeTransfer(address(msg.sender), amount);
          }
+          if(address(pool.lpToken) == address(coin)) {
+            depositedCoins = depositedCoins.sub(amount);
+        }
          emit EmergencyWithdraw(msg.sender, _pid, amount);
     }
     
