@@ -185,6 +185,10 @@ contract AboatToken is ERC20, Liquify, IAboatToken {
         emit ChangedHighFeeState(isHighFeeActive);
     }
     
+    function activateContract() public onlyMaintainerOrOwner {
+        isContractActive = true;
+    }
+    
     function blacklist(address user) public onlyMaintainerOrOwner {
         blacklisted[user] = true;
         emit Blacklisted(user);
