@@ -84,7 +84,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
         coin = AboatToken(_coin);
         devAddress = _devaddr;
         feeAddress = _feeAddress;
-        coinPerBlock = 4000 ether;
+        coinPerBlock = 2000 ether;
         startBlock = _startBlock;
         //alloc point, lp token, pool id, deposit fee, contractor, lock period in days, update pool
         add(100, _coin, 0, 400, IMasterChefContractor(address(0)), 30, true, false);

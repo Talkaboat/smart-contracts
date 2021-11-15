@@ -26,7 +26,7 @@ contract PreSale is Ownable {
     uint256 public soldTokens; //how many token are currently sold
     uint256 public saleEnded = 0; //block when the sale ended (0 = still ongoing)
     uint256 public afterDays; //after how many days can investors make their initial claim
-    uint256 public period = 1; //How many days are between each claim 
+    uint256 public period = 30; //How many days are between each claim 
     uint256 public initialClaimPercentage = 400; //How much can investors claim directly after sale ended (default: 40%)
     uint256 public percentagePerPeriod = 50; //How much can investors claim per period after the initial claim (default: 5% -> 1 year vesting)
     
@@ -97,6 +97,11 @@ contract PreSale is Ownable {
         require(_newRewardToken.balanceOf(address(this)) == rewardToken.balanceOf(address(this)), "ABOAT::updateRewardToken: The contract should contain atleast the same amount of tokens as from the current rewardToken");
         rewardToken = _newRewardToken;
         emit ChangeRewardToken(address(rewardToken));
+    }
+    
+    function updateAfterDays(uint256 _afterDays) public onlyOwner {
+        require(saleEnded != 0, "ABOAT::updateAfterDays: Sale not ended");
+        afterDays = _afterDays;
     }
     
     
