@@ -155,7 +155,7 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
         reDistributionRate = _redistribution;
         devRate = _dev;
         donationRate = _donation;
-        emit UpdateTax(redistribution, dev, donation);
+        emit UpdateTax(reDistributionRate, devRate, donationRate);
     }
     
     function updateRouter(address router) public onlyMaintainerOrOwner locked("router") {
