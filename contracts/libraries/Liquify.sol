@@ -50,9 +50,7 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
     ===================================================================================================================== */
     event MinimumTransferTaxRateUpdated(address indexed caller, uint256 previousRate, uint256 newRate);
     event MaximumTransferTaxRateUpdated(address indexed caller, uint256 previousRate, uint256 newRate);
-    event ReDistributionRateUpdated(address indexed caller, uint256 previousRate, uint256 newRate);
-    event DevRateUpdated(address indexed caller, uint256 previousRate, uint256 newRate);
-    event DonationRateUpdated(address indexed caller, uint256 previousRate, uint256 newRate);
+    event UpdateTax(uint16 redistribution, uint16 dev, uint16 donation);
     event MinAmountToLiquifyUpdated(address indexed caller, uint256 previousAmount, uint256 newAmount);
     event RouterUpdated(address indexed caller, address indexed router, address indexed pair);
     event ChangedLiqudityPair(address indexed caller, address indexed pair);
@@ -105,6 +103,10 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
         _rewardWallet = wallet;
         excludeFromAll(_rewardWallet);
     }
+
+    function setMinAmountToLiquify(uint256 _amount) public onlyMaintainerOrOwner {
+        _minAmountToLiquify = _amount;
+    }
     
     /* =====================================================================================================================
                                                     Utility Functions
@@ -147,23 +149,13 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
         emit MaximumTransferTaxRateUpdated(msg.sender, minimumTransferTaxRate, _transferTaxRate);
         maximumTransferTaxRate = _transferTaxRate;
     }
-    
-    function updateRedistributionRate(uint16 _rate) public onlyMaintainerOrOwner locked("redistribution_rate") {
-        require(_rate + devRate + donationRate <= 100, "ABOAT::updateRedistributionRate: Redistribution rate must not exceed the maximum rate.");
-        emit ReDistributionRateUpdated(msg.sender, reDistributionRate, _rate);
-        reDistributionRate = _rate;
-    }
-    
-    function updateDevRate(uint16 _rate) public onlyMaintainerOrOwner locked("dev_rate") {
-        require(_rate + donationRate + reDistributionRate <= 100, "ABOAT::updateDevRate: Burn rate must not exceed the maximum rate.");
-        emit DevRateUpdated(msg.sender, devRate, _rate);
-        devRate = _rate;
-    }
-    
-    function updateDonationRate(uint16 _rate) public onlyMaintainerOrOwner locked("donation_rate") {
-        require(_rate + devRate + reDistributionRate <= 100, "ABOAT::updateDonationRate: Burn rate must not exceed the maximum rate.");
-        emit DonationRateUpdated(msg.sender, donationRate, _rate);
-        donationRate = _rate;
+
+    function updateTax(uint16 _redistribution, uint16 _dev, uint16 _donation) public onlyMaintainerOrOwner locked("updateTax") {
+        require(_redistribution + _dev + _donation <= 100, "ABOAT::updateTax: Tax cant exceed 100 percent!");
+        reDistributionRate = _redistribution;
+        devRate = _dev;
+        donationRate = _donation;
+        emit UpdateTax(redistribution, dev, donation);
     }
     
     function updateRouter(address router) public onlyMaintainerOrOwner locked("router") {
