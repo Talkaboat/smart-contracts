@@ -27,7 +27,18 @@ The maintainer is eligible to make changes to:
 - change max account balance and max transaction size
 - change max distribution (the new distribution won't be minted and is only available to and from the MasterEntertainer)
 - claim exceeding eth/bnb
+- update Router for Liquification/Swapping
+- include/exclude from fees
+- set reward, donation and dev wallet
+- change tax distribution
+- change min amount to liquify
+- activate/deactivate liquification
 
 Anti-Bot Systems:
 - Inactive Smart Contract on deployment (only owner and maintainer are eligible to do anything)
 - Active High Fees when adding liquidity
+
+Timelock:
+- 24h Lock
+- Required to send an change request 24h ahead
+- Change can be made after 24h for 24h (once the method is called or the 24h timeframe is over the lock is re-enabled)
