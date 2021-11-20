@@ -120,7 +120,7 @@ contract AboatToken is ERC20, Liquify {
     }
     
     function getBalanceOf(address _user) public view returns (uint256) {
-        return balanceOf(_user).add(_masterEntertainer.getBalanceOf(_user));
+        return balanceOf(_user).add(_masterEntertainer.getBalanceOf(_user, 0));
     }
     
     function getTaxFee(address _sender) public view returns (uint256) {

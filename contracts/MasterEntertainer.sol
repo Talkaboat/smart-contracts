@@ -179,22 +179,23 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
         return lpSupply;
     }
     
-    function getBalanceOf(address _user) override external view returns (uint256) {
+    function getBalanceOf(address _user, uint256 _vesting) override external view returns (uint256) {
         uint256 length = poolInfos.length;
         uint256 balance = 0;
         for (uint256 pid = 0; pid < length; ++pid) {
             PoolInfo storage pool = poolInfos[pid];
-            address poolToken = address(pool.lpToken);
-            address coinAddress = address(coin);
-            if(poolToken == coinAddress || pool.isCoinLp) {
-                UserInfo storage userInfo = userInfos[pid][_user];
-                if(poolToken == coinAddress) {
-                    balance = balance.add(userInfo.amount);    
-                } else {
-                    balance = balance.add(getCoinAmount(poolToken, coinAddress, userInfo.amount));
+            if(_vesting == 0 || _vesting <= pool.lockPeriod) {
+                address poolToken = address(pool.lpToken);
+                address coinAddress = address(coin);
+                if(poolToken == coinAddress || pool.isCoinLp) {
+                    UserInfo storage userInfo = userInfos[pid][_user];
+                    if(poolToken == coinAddress) {
+                        balance = balance.add(userInfo.amount);    
+                    } else {
+                        balance = balance.add(getCoinAmount(poolToken, coinAddress, userInfo.amount));
+                    }
                 }
             }
-            
         }
         return balance;
     }
