@@ -60,6 +60,8 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
     uint256 public lastEmissionUpdateBlock;
     uint256 public lastEmissionIncrease = 0;
     uint16 public maxEmissionIncrease = 25000;
+
+    mapping(address => bool) public whitelisted;
     
     /* =====================================================================================================================
                                                         Events
@@ -136,6 +138,10 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
     function setMaxEmissionIncrease(uint16 _maxEmissionIncrease) public onlyOwner {
         maxEmissionIncrease = _maxEmissionIncrease;
         emit SetMaxEmissionIncrease(msg.sender, _maxEmissionIncrease);
+    }
+
+    function whitelist(bool _whitelisted, address _address) public onlyOwner {
+        whitelisted[_address] = _whitelisted;
     }
     
     /* =====================================================================================================================
@@ -260,15 +266,24 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
         pool.accCoinPerShare = pool.accCoinPerShare.add(coinReward.mul(1e12).div(lpSupply));
         pool.lastRewardBlock = block.number;
     }
+
+    function depositForUser(uint256 _pid, uint256 _amount, address user) public nonReentrant {
+        require(whitelisted[msg.sender], "ABOAT::depositForUser: You are not allowed to execute this deposit.");
+        executeDeposit(_pid, _amount, user);
+    }
     
     function deposit(uint256 _pid, uint256 _amount) public nonReentrant {
+        executeDeposit(_pid, _amount, msg.sender);
+    }
+
+    function executeDeposit(uint256 _pid, uint256 _amount, address _userAddress) internal {
         PoolInfo storage pool = poolInfos[_pid];
-        UserInfo storage user = userInfos[_pid][msg.sender];
+        UserInfo storage user = userInfos[_pid][_userAddress];
         updatePool(_pid);
-        if(user.amount > 0) {
+        if(user.amount > 0 && _userAddress == msg.sender) {
             uint256 pending = user.amount.mul(pool.accCoinPerShare).div(1e12).sub(user.rewardDebt);
             if(pending > 0) {
-                safeCoinTransfer(msg.sender, pending);
+                safeCoinTransfer(_userAddress, pending);
             }
         }
         uint256 realAmount = _amount;
@@ -294,7 +309,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
         if(address(pool.lpToken) == address(coin)) {
             depositedCoins = depositedCoins.add(realAmount);
         }
-        emit Deposit(msg.sender, _pid, _amount);
+        emit Deposit(_userAddress, _pid, _amount);
         checkPriceUpdate();
     }
     
