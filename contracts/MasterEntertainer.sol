@@ -267,7 +267,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
         pool.lastRewardBlock = block.number;
     }
 
-    function depositForUser(uint256 _pid, uint256 _amount, address user) public nonReentrant {
+    function depositForUser(uint256 _pid, uint256 _amount, address user) external override nonReentrant {
         require(whitelisted[msg.sender], "ABOAT::depositForUser: You are not allowed to execute this deposit.");
         executeDeposit(_pid, _amount, user);
     }

@@ -1,424 +1,204 @@
- // SPDX-License-Identifier: GPL-3.0
-
+// SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.7;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
-import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 import "./libraries/TransferHelper.sol";
-import "./libraries/PriceTicker.sol";
-import "./interfaces/IMasterChefContractor.sol";
 import "./interfaces/IMasterEntertainer.sol";
-import "./AboatToken.sol";
 
-contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEntertainer {
+contract PreSale is Ownable {
+    using Address for address;
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
-    using Address for address;    
-    
-    /* =====================================================================================================================
-                                                        Structs
-    ===================================================================================================================== */
-    struct UserInfo {
-        uint256 amount;
-        uint256 rewardDebt;
-        uint256 lastDeposit;
-    }
-    
-    struct PoolInfo {
-        IMasterChefContractor contractor;
-        IERC20 lpToken;
-        uint256 allocPoint;
-        uint256 lastRewardBlock;
-        uint256 accCoinPerShare;
-        uint16 depositFee;
-        uint256 depositedCoins;
-        uint256 pid;
-        uint256 lockPeriod;
-        bool isCoinLp;
-    }
     
     /* =====================================================================================================================
                                                         Variables
     ===================================================================================================================== */
-    mapping(uint256 => mapping(address => UserInfo)) public userInfos;
+    IERC20 public rewardToken; //Aboat Token
+    IERC20 public paymentToken; //BNB
+    uint256 public pricePerToken;   //How much BNB per Aboat Token
+    uint256 public limit;   //how much can each investors spend at maximum
+    uint256 public softcap; //minimum required sell (how many tokens should be sold)
+    uint256 public soldTokens; //how many token are currently sold
+    uint256 public saleEnded = 0; //block when the sale ended (0 = still ongoing)
+    uint256 public afterDays; //after how many days can investors make their initial claim
+    uint256 public period = 30; //How many days are between each claim 
+    uint256 public initialClaimPercentage = 100; //How much can investors claim directly after sale ended (default: 40%)
+    uint256 public percentagePerPeriod = 50; //How much can investors claim per period after the initial claim (default: 5% -> 1 year vesting)
+    uint256 public cliffPeriod = 90; //How many days after initial claim before percentagePerPeriod takes place
     
-    PoolInfo[] public poolInfos;
+    bool public requireWhitelist = true;    //flag to determine whether buyers have to be whitelisted or not
     
-    address public devAddress;
-    address public feeAddress;
-    
-    uint256 public coinPerBlock;
-    uint256 public startBlock;
-    uint256 public totalAllocPoint = 0;
-    uint256 public depositedCoins = 0;
-    uint256 public lastEmissionUpdateBlock;
-    uint256 public lastEmissionIncrease = 0;
-    uint16 public maxEmissionIncrease = 25000;
-
     mapping(address => bool) public whitelisted;
-    
+    mapping(address => uint256) public bought;  //tracks who bought how many aboat token
+    mapping(address => uint256) public claimed; //tracks who claimed how much percentage of his tokens
+    mapping(address => uint256) public claimedTokens; //tracks who claimed how many aboat token
+    mapping(address => address) public lastClaimAddress; //In case we have to swap the token contract
+
     /* =====================================================================================================================
                                                         Events
     ===================================================================================================================== */
-    event NewPool(address indexed pool, uint256 indexed pid);
-    event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
-    event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
-    event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);
-    event Claim(address indexed user, uint256 indexed pid, uint256 amount);
-    event SetFeeAddress(address indexed user, address indexed newAddress);
-    event SetDevAddress(address indexed user, address indexed newAddress);
-    event SetMaxEmissionIncrease(address indexed user, uint16 newMaxEmissionIncrease);
-    event UpdateEmissionRate(address indexed user, uint256 newEmission);
-    event UpdatedPool(uint256 indexed pid);
+    event SaleEnded(uint256 indexed claimDate);
+    event Claimed(address indexed owner, uint256 indexed amount);
+    event Bought(address indexed buyer, uint256 indexed amount);
+    event ChangeRewardToken(address indexed newToken);
+    event DepositedInVestingPool(address indexed owner, uint256 indexed amount);
+    
+    constructor(IERC20 _rewardToken, IERC20 _paymentToken, uint256 _limit, uint256 _softcap, uint256 _price) {
+        require(_price > 0, "ABOAT::error: Price has to be higher than zero");
+        rewardToken = _rewardToken;
+        paymentToken = _paymentToken;
+        limit = _limit;
+        softcap = _softcap;   //softcap in terms of sold tokens
+        pricePerToken = _price;
+    }
+    
     
     /* =====================================================================================================================
-                                                        Modifier
+                                                        Owner
     ===================================================================================================================== */
-
     
-    constructor(AboatToken _coin, address _devaddr, address _feeAddress, uint256 _startBlock) {
-        coin = AboatToken(_coin);
-        devAddress = _devaddr;
-        feeAddress = _feeAddress;
-        coinPerBlock = 2000 ether;
-        startBlock = _startBlock;
-        //alloc point, lp token, pool id, deposit fee, contractor, lock period in days, update pool
-        add(100, _coin, 0, 400, IMasterChefContractor(address(0)), 30, true, false);
-        add(150, _coin, 0, 300, IMasterChefContractor(address(0)), 90, true, false);
-        add(250, _coin, 0, 200, IMasterChefContractor(address(0)), 180, true, false);
-        add(400, _coin, 0, 100, IMasterChefContractor(address(0)), 360, true, false);
-    }  
-
-    /* =====================================================================================================================
-                                                        Set Functions
-    ===================================================================================================================== */
-    function setDevAddress(address _devAddress) public onlyOwner locked("setDevAddress") {
-        devAddress = _devAddress;
-        emit SetDevAddress(msg.sender, _devAddress);
-    }
-    
-    function massUpdatePools() public {
-        uint256 length = poolInfos.length;
-        for (uint256 pid = 0; pid < length; ++pid) {
-            updatePool(pid);
-        }
-    }
-    
-    function setPoolVariables(uint256 _pid, uint256 _allocPoint, uint16 _depositFee, uint256 _lockPeriod, bool _isCoinLp, bool _withUpdate) public onlyOwner locked("setPoolVariables") {
-        require(_depositFee <= 10000,"set: deposit fee can't exceed 10 %");
-        if (_withUpdate) {
-            massUpdatePools();
-        }
-        totalAllocPoint = totalAllocPoint.sub(poolInfos[_pid].allocPoint).add(_allocPoint);
-        poolInfos[_pid].allocPoint = _allocPoint;
-        poolInfos[_pid].depositFee = _depositFee;
-        poolInfos[_pid].lockPeriod = _lockPeriod;
-        poolInfos[_pid].isCoinLp = _isCoinLp;
-        emit UpdatedPool(_pid);
-    }
-    
-    function updateEmissionRate(uint256 _coinPerBlock) public onlyOwner locked("updateEmissionRate") {
-        massUpdatePools();
-        coinPerBlock = _coinPerBlock;
-        emit UpdateEmissionRate(msg.sender, _coinPerBlock);
-    }
-    
-    function updateEmissionRateInternal(uint256 _coinPerBlock) internal {
-        massUpdatePools();
-        coinPerBlock = _coinPerBlock;
-        emit UpdateEmissionRate(address(this), _coinPerBlock);
-    }
-    
-    function setMaxEmissionIncrease(uint16 _maxEmissionIncrease) public onlyOwner {
-        maxEmissionIncrease = _maxEmissionIncrease;
-        emit SetMaxEmissionIncrease(msg.sender, _maxEmissionIncrease);
-    }
-
-    function whitelist(bool _whitelisted, address _address) public onlyOwner {
-        whitelisted[_address] = _whitelisted;
-    }
-    
-    /* =====================================================================================================================
-                                                        Get Functions
-    ===================================================================================================================== */
-    function poolLength() external view returns (uint256) {
-        return poolInfos.length;
-    }
-    
-    function canClaimRewards(uint256 _amount) public view returns (bool) {
-        return coin.canMintNewCoins(_amount);
-    }
-    
-    function getNewEmissionRate(uint256 percentage, bool isPositiveChange) public view returns (uint256) {
-        uint256 newEmissionRate = coinPerBlock;
-        if(isPositiveChange) {
-            newEmissionRate = newEmissionRate.add(newEmissionRate.mul(percentage).div(1000000));
-        } else {
-            newEmissionRate = newEmissionRate.sub(newEmissionRate.mul(percentage).div(1000000));
-        }
-        return newEmissionRate;
-    }
-    
-    function getDepositFee(uint256 _pid) public view returns (uint256) {
-        PoolInfo storage pool = poolInfos[_pid];
-        uint256 depositFee = pool.depositFee;
-        if(address(pool.contractor) != address(0)) {
-            depositFee = depositFee.add(pool.contractor.getDepositFee(pool.pid));
-        }
-        return depositFee;
-    }
-    
-    function getLpSupply(uint256 _pid) public view returns (uint256) {
-        PoolInfo storage pool = poolInfos[_pid];
-        uint256 lpSupply = 0;
-        if(address(pool.lpToken) == address(coin) || address(pool.contractor) != address(0)) {
-            lpSupply = pool.depositedCoins;
-        } else {
-            lpSupply =  pool.lpToken.balanceOf(address(this));
-        }
-        return lpSupply;
-    }
-    
-    function getBalanceOf(address _user, uint256 _vesting) override external view returns (uint256) {
-        uint256 length = poolInfos.length;
-        uint256 balance = 0;
-        for (uint256 pid = 0; pid < length; ++pid) {
-            PoolInfo storage pool = poolInfos[pid];
-            if(_vesting == 0 || _vesting <= pool.lockPeriod) {
-                address poolToken = address(pool.lpToken);
-                address coinAddress = address(coin);
-                if(poolToken == coinAddress || pool.isCoinLp) {
-                    UserInfo storage userInfo = userInfos[pid][_user];
-                    if(poolToken == coinAddress) {
-                        balance = balance.add(userInfo.amount);    
-                    } else {
-                        balance = balance.add(getCoinAmount(poolToken, coinAddress, userInfo.amount));
-                    }
-                }
-            }
-        }
-        return balance;
-    }
-    
-    function pendingCoin(uint256 _pid, address _user) external view returns (uint256)
-    {
-        PoolInfo storage pool = poolInfos[_pid];
-        UserInfo storage user = userInfos[_pid][_user];
-        uint256 accCoinPerShare = pool.accCoinPerShare;
-        uint256 lpSupply = getLpSupply(_pid);
-        if (block.number > pool.lastRewardBlock && lpSupply != 0) {
-            uint256 multiplier = block.number.sub(pool.lastRewardBlock);
-            uint256 coinReward = multiplier.mul(coinPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
-            accCoinPerShare = accCoinPerShare.add(coinReward.mul(1e12).div(lpSupply));
-        }
-        return user.amount.mul(accCoinPerShare).div(1e12).sub(user.rewardDebt);
-    }
-    
-    /* =====================================================================================================================
-                                                    Utility Functions
-    ===================================================================================================================== */
-    function add(uint256 _allocPoint, IERC20 _lpToken, uint256 _pid, uint16 _depositFee, IMasterChefContractor _contractor, uint256 _lockPeriod, bool _isCoinLp,  bool _withUpdate) public onlyOwner {
-        require(_depositFee <= 10000,"set: deposit fee can't exceed 10 %");
-        if(_withUpdate) {
-            massUpdatePools();
-        }
-        uint256 lastRewardBlock = block.number > startBlock ? block.number : startBlock;
-        totalAllocPoint = totalAllocPoint.add(_allocPoint);
-        poolInfos.push(
-            PoolInfo({
-                lpToken: _lpToken,
-                allocPoint: _allocPoint,
-                lastRewardBlock: lastRewardBlock,
-                accCoinPerShare: 0,
-                depositFee: _depositFee,
-                depositedCoins: 0,
-                pid: _pid,
-                contractor: _contractor,
-                lockPeriod: _lockPeriod,
-                isCoinLp: _isCoinLp
-            })
-        );
-        emit NewPool(address(_lpToken), poolInfos.length - 1);
-    }
-    
-    function updatePool(uint256 _pid) public {
-        PoolInfo storage pool = poolInfos[_pid];
-        if (block.number <= pool.lastRewardBlock) {
-            return;
-        }
-        uint256 lpSupply = getLpSupply(_pid);
-        if (lpSupply == 0) {
-            pool.lastRewardBlock = block.number;
-            return;
-        }
-        uint256 multiplier = block.number.sub(pool.lastRewardBlock);
-        uint256 coinReward = multiplier.mul(coinPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
-        if(canClaimRewards(coinReward + coinReward.div(10))) {
-            coin.mint(devAddress, coinReward.div(10));
-            coin.mint(address(this), coinReward);
-        }
-        pool.accCoinPerShare = pool.accCoinPerShare.add(coinReward.mul(1e12).div(lpSupply));
-        pool.lastRewardBlock = block.number;
-    }
-
-    function depositForUser(uint256 _pid, uint256 _amount, address user) external override nonReentrant {
-        require(whitelisted[msg.sender], "ABOAT::depositForUser: You are not allowed to execute this deposit.");
-        executeDeposit(_pid, _amount, user);
-    }
-    
-    function deposit(uint256 _pid, uint256 _amount) public nonReentrant {
-        executeDeposit(_pid, _amount, msg.sender);
-    }
-
-    function executeDeposit(uint256 _pid, uint256 _amount, address _userAddress) internal {
-        PoolInfo storage pool = poolInfos[_pid];
-        UserInfo storage user = userInfos[_pid][_userAddress];
-        updatePool(_pid);
-        if(user.amount > 0 && _userAddress == msg.sender) {
-            uint256 pending = user.amount.mul(pool.accCoinPerShare).div(1e12).sub(user.rewardDebt);
-            if(pending > 0) {
-                safeCoinTransfer(_userAddress, pending);
-            }
-        }
-        uint256 realAmount = _amount;
-        if(_amount > 0) {
-            user.lastDeposit = block.timestamp;
-           
-            pool.lpToken.safeTransferFrom(address(msg.sender), address(this), _amount);
-            if(pool.depositFee > 0) {
-                uint256 depositFeeAmount = _amount.mul(pool.depositFee).div(10000);
-                pool.lpToken.safeTransfer(feeAddress, depositFeeAmount);
-                realAmount = _amount.sub(depositFeeAmount);
-                user.amount = user.amount.add(realAmount);
+    function claimAndEndSale(uint256 _afterDays) public onlyOwner {
+        require(saleEnded == 0, "ABOAT::claimAndEndSale: Sale already ended");
+        saleEnded = block.timestamp;
+        if(softcap <= soldTokens) {
+            //Community can claim their entry after a certain period (should be between public sale and official release (liquidity))
+            afterDays = _afterDays;
+            if(address(paymentToken) != address(0)) {
+                TransferHelper.safeTransfer(address(paymentToken), msg.sender, paymentToken.balanceOf(address(this)));
             } else {
-                user.amount = user.amount.add(_amount);
-            }
-            pool.depositedCoins = pool.depositedCoins.add(realAmount);
-            if(address(pool.contractor) != address(0)) {
-                pool.lpToken.approve(address(pool.contractor), realAmount);
-                pool.contractor.deposit(pool.pid, realAmount);
-            }
-        }
-        user.rewardDebt = user.amount.mul(pool.accCoinPerShare).div(1e12);
-        if(address(pool.lpToken) == address(coin)) {
-            depositedCoins = depositedCoins.add(realAmount);
-        }
-        emit Deposit(_userAddress, _pid, _amount);
-        checkPriceUpdate();
-    }
-    
-    function withdraw(uint256 _pid, uint256 _amount) public nonReentrant {
-        PoolInfo storage pool = poolInfos[_pid];
-        UserInfo storage user = userInfos[_pid][msg.sender];
-        require(user.amount >= _amount, "withdraw: withdraw amount can't exceed users deposited amount");
-        updatePool(_pid);
-        uint256 pending = user.amount.mul(pool.accCoinPerShare).div(1e12).sub(user.rewardDebt);
-        if(pending > 0) {
-            safeCoinTransfer(msg.sender, pending);
-        }
-        if(_amount > 0) {
-            require(user.lastDeposit.add(pool.lockPeriod * 1 days) <= block.timestamp, "ABOAT::withdraw: Can't withdraw before locking period ended.");
-            user.amount = user.amount.sub(_amount);
-            if(address(pool.contractor) != address(0)) {
-                pool.contractor.withdraw(pool.pid, _amount, address(msg.sender));
-            } else {
-                pool.lpToken.safeTransfer(address(msg.sender), _amount);
-            }
-           pool.depositedCoins = pool.depositedCoins.sub(_amount);
-        }
-        user.rewardDebt = user.amount.mul(pool.accCoinPerShare).div(1e12);
-        if(address(pool.lpToken) == address(coin)) {
-            depositedCoins = depositedCoins.sub(_amount);
-        }
-        emit Withdraw(msg.sender, _pid, _amount);
-        checkPriceUpdate();
-    }
-    
-    function claim(uint256 _pid) public nonReentrant {
-        PoolInfo storage pool = poolInfos[_pid];
-        UserInfo storage user = userInfos[_pid][msg.sender];
-        updatePool(_pid);
-        uint256 pending = user.amount.mul(pool.accCoinPerShare).div(1e12).sub(user.rewardDebt);
-        
-        if (pending > 0) {
-            safeCoinTransfer(msg.sender, pending);
-            emit Claim(msg.sender, _pid, pending);
-        }
-        if(address(pool.contractor) != address(0)) {
-            pool.contractor.withdraw(pool.pid, 0, address(msg.sender));
-        }
-        user.rewardDebt = user.amount.mul(pool.accCoinPerShare).div(1e12);
-        checkPriceUpdate();
-    }
-    
-    // Withdraw without caring about rewards.
-    function withdrawWithoutRewards(uint256 _pid) public nonReentrant {
-        PoolInfo storage pool = poolInfos[_pid];
-        UserInfo storage user = userInfos[_pid][msg.sender];
-        require(user.lastDeposit.add(pool.lockPeriod * 1 days) <= block.timestamp, "ABOAT::withdrawWithoutRewards: Can't withdraw before locking period ended.");
-        uint256 amount = user.amount;
-        pool.depositedCoins = pool.depositedCoins.sub(amount);
-        user.amount = 0;
-        user.rewardDebt = 0;
-         if(address(pool.contractor) != address(0)) {
-             pool.contractor.emergencyWithdraw(pool.pid, amount, address(msg.sender));
-         } else {
-            pool.lpToken.safeTransfer(address(msg.sender), amount);
-         }
-          if(address(pool.lpToken) == address(coin)) {
-            depositedCoins = depositedCoins.sub(amount);
-        }
-         emit EmergencyWithdraw(msg.sender, _pid, amount);
-    }
-    
-    function safeCoinTransfer(address _to, uint256 _amount) internal {
-        uint256 coinBalance = coin.balanceOf(address(this)).sub(depositedCoins);
-        if (_amount > coinBalance) {
-            IERC20(coin).safeTransfer(_to, coinBalance);
+                TransferHelper.safeTransferETH(msg.sender, address(this).balance);
+            } 
         } else {
-            IERC20(coin).safeTransfer(_to, _amount);
-        }
-    }
-    
-    function updatePrice() override external {
-        checkPriceUpdate();
-    }
-    
-    function checkPriceUpdate() override public {
-        if(address(coin) == address(0) || address(coin.liquidityPair()) == address(0)) {
-            return;
-        }
-        if (lastPriceUpdateBlock < block.timestamp - 1 hours) {
-            uint256 tokenPrice = getTokenPrice();
-            hourlyPrices[hourlyIndex++] = tokenPrice;
-            lastPriceUpdateBlock = block.timestamp;
-        }
-        if (lastEmissionUpdateBlock < block.timestamp - 24 hours && hourlyIndex > 2) {
-            uint256 averagePrice = getAveragePrice();
-            lastEmissionUpdateBlock = block.timestamp;
-            hourlyIndex = 0;
-            bool shouldUpdateEmissionRate = lastAveragePrice != 0;
-            updateLastAveragePrice(averagePrice);
-            if(shouldUpdateEmissionRate) {
-                updateEmissionRateByPriceDifference();
+            //Community can claim their entry directly as the sale failed.
+            afterDays = 0;
+             if(address(rewardToken) != address(0)) {
+                TransferHelper.safeTransfer(address(rewardToken), msg.sender, rewardToken.balanceOf(address(this)));
+            } else {
+                TransferHelper.safeTransferETH(msg.sender,  address(this).balance);
             }
         }
+        emit SaleEnded(saleEnded.add(afterDays.mul(1 days)));
     }
     
-    function updateEmissionRateByPriceDifference() internal {
-        uint256 percentageDifference = getPriceDifference(int256(lastAveragePrice), int256(previousAveragePrice));
-        if(percentageDifference > maxEmissionIncrease) {
-            percentageDifference = maxEmissionIncrease;
+    function disableWhitelist() public onlyOwner {
+        require(requireWhitelist, "ABOAT:disableWhitelist: Whitelist is already disabled");
+        requireWhitelist = false;
+    }
+    
+    //Will only be required if the token security audit displays errors that have to be fixed
+    //which would mean a new contract has to be deployed.
+    //With this function we can ensure that early investors will still be able to get the right coin before release
+    function updateRewardToken(IERC20 _newRewardToken) public onlyOwner {
+        require(_newRewardToken != rewardToken, "ABOAT::updateRewardToken: New reward should be different from current.");
+        require(_newRewardToken.balanceOf(address(this)) == rewardToken.balanceOf(address(this)), "ABOAT::updateRewardToken: The contract should contain atleast the same amount of tokens as from the current rewardToken");
+        rewardToken = _newRewardToken;
+        emit ChangeRewardToken(address(rewardToken));
+    }
+    
+    function updateAfterDays(uint256 _afterDays) public onlyOwner {
+        require(saleEnded != 0, "ABOAT::updateAfterDays: Sale not ended");
+        afterDays = _afterDays;
+    }    
+    
+    function whitelist(address[] memory addresses) public onlyOwner {
+        for(uint index = 0; index < addresses.length; index++) {
+            whitelisted[addresses[index]] = true;
         }
-        uint256 newEmissionRate = getNewEmissionRate(percentageDifference, lastAveragePrice > previousAveragePrice);
-        lastEmissionIncrease = percentageDifference;
-        lastAveragePrice = lastAveragePrice;
-        updateEmissionRateInternal(newEmissionRate);
+    }
+
+    function whitelistFromSAFT(address[] memory addresses, uint256[] memory amounts) public onlyOwner {
+        for(uint index = 0; index < addresses.length; index++) {
+            whitelisted[addresses[index]] = true;
+            uint256 amountBought = amounts[index].mul(1e18).div(pricePerToken);
+            require(getRemainingBalance().sub(amountBought) > 0, "ABOAT::buy: Amount would exceed the remaining balance");
+            bought[addresses[index]] = bought[addresses[index]].add(amounts[index]);
+            soldTokens = soldTokens.add(amountBought);
+            lastClaimAddress[addresses[index]] = address(paymentToken);
+        }
+    }
+    
+    /* =====================================================================================================================
+                                                        General
+    ===================================================================================================================== */
+    
+    function getRemainingBalance() public view returns (uint256) {
+        if(address(rewardToken) == address(0)) {
+            return address(this).balance.sub(soldTokens);
+        } else {
+            return rewardToken.balanceOf(address(this)).sub(soldTokens);
+        }
+    }
+    
+    function getCurrentPercentage() public view returns (uint256) {
+        uint256 cliffEnded = saleEnded.add(cliffPeriod);
+        uint256 deltaPeriod = cliffEnded.add(afterDays * 1 days);
+        uint256 percentage = saleEnded > 0 && block.timestamp > deltaPeriod
+        ? block.timestamp.sub(deltaPeriod)
+            .div(period * 1 days)
+            .mul(percentagePerPeriod)
+            .add(initialClaimPercentage) 
+        : initialClaimPercentage;
+        return percentage > 1000 ? 1000 : percentage;
+    }
+    
+    
+    /* =====================================================================================================================
+                                                        Investors
+    ===================================================================================================================== */
+    
+    function buy(uint256 amount) public payable {
+        require(saleEnded == 0, "ABOAT::buy: Sale already ended!");
+        require(whitelisted[msg.sender] || !requireWhitelist, "ABOAT::buy: You're not whitelisted for this sale!");
+        bool isEthToken = address(paymentToken) == address(0);
+        require(!isEthToken || msg.value == amount, "ABOAT::buy: Sent value doesn't meet the given amount");
+        require(bought[msg.sender].add(amount) <= limit, "ABOAT::buy: Amount would exceed the maximum allowed limit");
+        uint256 amountBought = amount.mul(1e18).div(pricePerToken);
+        require(getRemainingBalance().sub(amountBought) > 0, "ABOAT::buy: Amount would exceed the remaining balance");
+        if(!isEthToken) {
+            paymentToken.safeTransferFrom(address(msg.sender), address(this), amount);
+        }
+        bought[msg.sender] = bought[msg.sender].add(amount);
+        soldTokens = soldTokens.add(amountBought);
+        lastClaimAddress[msg.sender] = address(paymentToken);
+        emit Bought(msg.sender, amount);
+    }
+    
+    //returns the reward token if softcap is reached and owner ended the sale
+    //otherwise it returns the paid paymentToken
+    function claim() public {
+        require(saleEnded != 0, "ABOAT::claim: Sale is not over yet!");
+        require(block.timestamp >= saleEnded.add((afterDays.mul(1 days))), "ABOAT::claim: Claim is not available yet.");
+        uint256 currentPercentage = getCurrentPercentage();
+        require(currentPercentage > 0, "ABOAT::claim: The percentage of token you can claim is currently zero. Please try again later");
+        if(lastClaimAddress[msg.sender] != address(rewardToken)) {
+            lastClaimAddress[msg.sender] = address(rewardToken);
+            claimed[msg.sender] = 0;
+            claimedTokens[msg.sender] = 0;
+        }
+        require(claimed[msg.sender] < currentPercentage, "ABOAT::claim: Already claimed your currently eligible tokens");
+        if(softcap <= soldTokens) {
+            uint256 currentlyClaimed = claimed[msg.sender];
+            claimed[msg.sender] = currentPercentage;
+            uint256 amount = bought[msg.sender].mul(currentPercentage.sub(currentlyClaimed)).div(1000).mul(1e18).div(pricePerToken);
+            claimedTokens[msg.sender] = claimedTokens[msg.sender].add(amount);
+            if(address(rewardToken) != address(0)) {
+                TransferHelper.safeTransfer(address(rewardToken), msg.sender, amount);
+            } else {
+                TransferHelper.safeTransferETH(msg.sender, amount);
+            }
+            emit Claimed(msg.sender, amount);
+        } else {
+            claimed[msg.sender] = 1000; //
+            if(address(paymentToken) != address(0)) {
+                TransferHelper.safeTransfer(address(paymentToken), msg.sender, bought[msg.sender]);
+            } else {
+                TransferHelper.safeTransferETH(msg.sender, bought[msg.sender]);
+            }
+            emit Claimed(msg.sender, bought[msg.sender]);
+        }
     }
 }

@@ -14,7 +14,7 @@ import "./interfaces/IMasterChefContractor.sol";
 import "./flip_interfaces/IPancakeSwapMasterChef.sol";
 import "./libraries/TransferHelper.sol";
 
-contract PancakeSwapFlipPool is Ownable, IMasterChefContractor {
+contract BaseFlipPool is Ownable, IMasterChefContractor {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using Address for address;    
