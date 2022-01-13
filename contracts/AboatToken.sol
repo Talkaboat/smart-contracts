@@ -63,7 +63,7 @@ contract AboatToken is ERC20, Liquify {
     
     constructor() ERC20("Aboat Token", "ABOAT") {
         // Token distribution: https://documentation.talkaboat.online/tokenomics/talkaboat-basics.html
-        mint(msg.sender, 500000000000 ether);
+        mint(msg.sender, 600000000000 ether);
         excludeFromAll(msg.sender);
     }
     
