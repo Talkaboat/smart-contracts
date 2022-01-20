@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity ^0.8.7;
+pragma solidity 0.8.7;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -43,7 +43,7 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
     IUniswapV2Router02 public _router;
     
     mapping(address => bool) public _excludedFromFeesAsSender;
-    mapping(address => bool) public _excludedFromFeesAsReciever;
+    mapping(address => bool) public _excludedFromFeesAsReceiver;
     
     /* =====================================================================================================================
                                                         Events
@@ -53,8 +53,8 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
     event UpdateTax(uint16 redistribution, uint16 dev, uint16 donation);
     event MinAmountToLiquifyUpdated(address indexed caller, uint256 previousAmount, uint256 newAmount);
     event RouterUpdated(address indexed caller, address indexed router, address indexed pair);
-    event ChangedLiqudityPair(address indexed caller, address indexed pair);
-    event SwapAndLiquify(uint256 tokensSwapped, uint256 ethReceived, uint256 tokensIntoLiqudity);
+    event ChangedLiquidityPair(address indexed caller, address indexed pair);
+    event SwapAndLiquify(uint256 tokensSwapped, uint256 ethReceived, uint256 tokensIntoLiquidity);
     
     /* =====================================================================================================================
                                                         Modifier
@@ -79,12 +79,13 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
                                                         Set Functions
     ===================================================================================================================== */
     function setLiquidityPair(address _tokenB) public onlyMaintainerOrOwner locked("lp_pair") {
+        require(_tokenB != address(0), "Liquify::setLiquidityPair: Liquidity pair can't contain zero address");
         _liquidityPair = IUniswapV2Factory(_router.factory()).getPair(address(this), _tokenB);
         if(_liquidityPair == address(0)) {
             _liquidityPair = IUniswapV2Factory(_router.factory()).createPair(address(this), _tokenB);
         }
         excludeTransferFeeAsSender(address(_liquidityPair));
-        emit ChangedLiqudityPair(msg.sender, _liquidityPair);
+        emit ChangedLiquidityPair(msg.sender, _liquidityPair);
     }
     
     function setDevWallet(address wallet) public onlyMaintainerOrOwner {
@@ -94,12 +95,12 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
     }
     
     function setDonationWallet(address wallet) public onlyMaintainerOrOwner {
-        require(wallet != address(0), "ABOAT::setDevWallet: Address can't be zero address");
+        require(wallet != address(0), "ABOAT::setDonationWallet: Address can't be zero address");
         _donationWallet = wallet;
     }
     
     function setRewardWallet(address wallet) public onlyMaintainerOrOwner {
-        require(wallet != address(0), "ABOAT::setDevWallet: Address can't be zero address");
+        require(wallet != address(0), "ABOAT::setRewardWallet: Address can't be zero address");
         _rewardWallet = wallet;
         excludeFromAll(_rewardWallet);
     }
@@ -113,20 +114,20 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
     ===================================================================================================================== */ 
     function excludeFromAll(address _excludee) public onlyMaintainerOrOwner {
         _excludedFromFeesAsSender[_excludee] = true;
-        _excludedFromFeesAsReciever[_excludee] = true;
+        _excludedFromFeesAsReceiver[_excludee] = true;
     }
     
     function excludeTransferFeeAsSender(address _excludee) public onlyMaintainerOrOwner {
         _excludedFromFeesAsSender[_excludee] = true;
     }
     
-    function excludeFromFeesAsReciever(address _excludee) public onlyMaintainerOrOwner {
-        _excludedFromFeesAsReciever[_excludee] = true;
+    function excludeFromFeesAsReceiver(address _excludee) public onlyMaintainerOrOwner {
+        _excludedFromFeesAsReceiver[_excludee] = true;
     }
     
     function includeForAll(address _excludee) public onlyMaintainerOrOwner {
         _excludedFromFeesAsSender[_excludee] = false;
-        _excludedFromFeesAsReciever[_excludee] = false;
+        _excludedFromFeesAsReceiver[_excludee] = false;
     }
     
     function includeTransferFeeAsSender(address _excludee) public onlyMaintainerOrOwner {
@@ -134,7 +135,7 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
     }
     
     function includeForFeesAsReciever(address _excludee) public onlyMaintainerOrOwner {
-        _excludedFromFeesAsReciever[_excludee] = false;
+        _excludedFromFeesAsReceiver[_excludee] = false;
     }
     
     function updateMinimumTransferTaxRate(uint16 _transferTaxRate) public onlyMaintainerOrOwner locked("min_tax") {

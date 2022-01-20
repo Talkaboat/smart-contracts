@@ -1,6 +1,6 @@
  // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity ^0.8.7;
+pragma solidity 0.8.7;
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
@@ -83,6 +83,9 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
 
     
     constructor(AboatToken _coin, address _devaddr, address _feeAddress, uint256 _startBlock) {
+        require(address(_coin) != address(0), "Aboat Token can't be zero address");
+        require(_devaddr != address(0), "Dev address should not be zero address");
+        require(_feeAddress != address(0), "Fee address should not be zero address");
         coin = AboatToken(_coin);
         devAddress = _devaddr;
         feeAddress = _feeAddress;
@@ -99,6 +102,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
                                                         Set Functions
     ===================================================================================================================== */
     function setDevAddress(address _devAddress) public onlyOwner locked("setDevAddress") {
+        require(_devAddress != address(0), "Dev address should not be zero address");
         devAddress = _devAddress;
         emit SetDevAddress(msg.sender, _devAddress);
     }
@@ -111,7 +115,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
     }
     
     function setPoolVariables(uint256 _pid, uint256 _allocPoint, uint16 _depositFee, uint256 _lockPeriod, bool _isCoinLp, bool _withUpdate) public onlyOwner locked("setPoolVariables") {
-        require(_depositFee <= 10000,"set: deposit fee can't exceed 10 %");
+        require(_depositFee <= 1000,"set: deposit fee can't exceed 10 %");
         if (_withUpdate) {
             massUpdatePools();
         }
@@ -129,12 +133,6 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
         emit UpdateEmissionRate(msg.sender, _coinPerBlock);
     }
     
-    function updateEmissionRateInternal(uint256 _coinPerBlock) internal {
-        massUpdatePools();
-        coinPerBlock = _coinPerBlock;
-        emit UpdateEmissionRate(address(this), _coinPerBlock);
-    }
-    
     function setMaxEmissionIncrease(uint16 _maxEmissionIncrease) public onlyOwner {
         maxEmissionIncrease = _maxEmissionIncrease;
         emit SetMaxEmissionIncrease(msg.sender, _maxEmissionIncrease);
@@ -143,6 +141,12 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
     function whitelist(bool _whitelisted, address _address) public onlyOwner {
         whitelisted[_address] = _whitelisted;
     }
+
+    function updateEmissionRateInternal(uint256 _coinPerBlock) internal {
+        massUpdatePools();
+        coinPerBlock = _coinPerBlock;
+        emit UpdateEmissionRate(address(this), _coinPerBlock);
+    }
     
     /* =====================================================================================================================
                                                         Get Functions
@@ -150,41 +154,8 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
     function poolLength() external view returns (uint256) {
         return poolInfos.length;
     }
-    
-    function canClaimRewards(uint256 _amount) public view returns (bool) {
-        return coin.canMintNewCoins(_amount);
-    }
-    
-    function getNewEmissionRate(uint256 percentage, bool isPositiveChange) public view returns (uint256) {
-        uint256 newEmissionRate = coinPerBlock;
-        if(isPositiveChange) {
-            newEmissionRate = newEmissionRate.add(newEmissionRate.mul(percentage).div(1000000));
-        } else {
-            newEmissionRate = newEmissionRate.sub(newEmissionRate.mul(percentage).div(1000000));
-        }
-        return newEmissionRate;
-    }
-    
-    function getDepositFee(uint256 _pid) public view returns (uint256) {
-        PoolInfo storage pool = poolInfos[_pid];
-        uint256 depositFee = pool.depositFee;
-        if(address(pool.contractor) != address(0)) {
-            depositFee = depositFee.add(pool.contractor.getDepositFee(pool.pid));
-        }
-        return depositFee;
-    }
-    
-    function getLpSupply(uint256 _pid) public view returns (uint256) {
-        PoolInfo storage pool = poolInfos[_pid];
-        uint256 lpSupply = 0;
-        if(address(pool.lpToken) == address(coin) || address(pool.contractor) != address(0)) {
-            lpSupply = pool.depositedCoins;
-        } else {
-            lpSupply =  pool.lpToken.balanceOf(address(this));
-        }
-        return lpSupply;
-    }
-    
+
+        
     function getBalanceOf(address _user, uint256 _vesting) override external view returns (uint256) {
         uint256 length = poolInfos.length;
         uint256 balance = 0;
@@ -220,9 +191,53 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
         return user.amount.mul(accCoinPerShare).div(1e12).sub(user.rewardDebt);
     }
     
+    function canClaimRewards(uint256 _amount) public view returns (bool) {
+        return coin.canMintNewCoins(_amount);
+    }
+    
+    function getNewEmissionRate(uint256 percentage, bool isPositiveChange) public view returns (uint256) {
+        uint256 newEmissionRate = coinPerBlock;
+        if(isPositiveChange) {
+            newEmissionRate = newEmissionRate.add(newEmissionRate.mul(percentage).div(1000000));
+        } else {
+            newEmissionRate = newEmissionRate.sub(newEmissionRate.mul(percentage).div(1000000));
+        }
+        return newEmissionRate;
+    }
+    
+    function getDepositFee(uint256 _pid) public view returns (uint256) {
+        PoolInfo storage pool = poolInfos[_pid];
+        uint256 depositFee = pool.depositFee;
+        if(address(pool.contractor) != address(0)) {
+            depositFee = depositFee.add(pool.contractor.getDepositFee(pool.pid));
+        }
+        return depositFee;
+    }
+    
+    function getLpSupply(uint256 _pid) public view returns (uint256) {
+        PoolInfo storage pool = poolInfos[_pid];
+        uint256 lpSupply = 0;
+        if(address(pool.lpToken) == address(coin) || address(pool.contractor) != address(0)) {
+            lpSupply = pool.depositedCoins;
+        } else {
+            lpSupply =  pool.lpToken.balanceOf(address(this));
+        }
+        return lpSupply;
+    }
+
+    
     /* =====================================================================================================================
                                                     Utility Functions
     ===================================================================================================================== */
+    function depositForUser(uint256 _pid, uint256 _amount, address user) external override nonReentrant {
+        require(whitelisted[msg.sender], "ABOAT::depositForUser: You are not allowed to execute this deposit.");
+        executeDeposit(_pid, _amount, user);
+    }
+
+    function updatePrice() override external {
+        checkPriceUpdate();
+    }
+
     function add(uint256 _allocPoint, IERC20 _lpToken, uint256 _pid, uint16 _depositFee, IMasterChefContractor _contractor, uint256 _lockPeriod, bool _isCoinLp,  bool _withUpdate) public onlyOwner {
         require(_depositFee <= 10000,"set: deposit fee can't exceed 10 %");
         if(_withUpdate) {
@@ -266,51 +281,9 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
         pool.accCoinPerShare = pool.accCoinPerShare.add(coinReward.mul(1e12).div(lpSupply));
         pool.lastRewardBlock = block.number;
     }
-
-    function depositForUser(uint256 _pid, uint256 _amount, address user) external override nonReentrant {
-        require(whitelisted[msg.sender], "ABOAT::depositForUser: You are not allowed to execute this deposit.");
-        executeDeposit(_pid, _amount, user);
-    }
     
     function deposit(uint256 _pid, uint256 _amount) public nonReentrant {
         executeDeposit(_pid, _amount, msg.sender);
-    }
-
-    function executeDeposit(uint256 _pid, uint256 _amount, address _userAddress) internal {
-        PoolInfo storage pool = poolInfos[_pid];
-        UserInfo storage user = userInfos[_pid][_userAddress];
-        updatePool(_pid);
-        if(user.amount > 0 && _userAddress == msg.sender) {
-            uint256 pending = user.amount.mul(pool.accCoinPerShare).div(1e12).sub(user.rewardDebt);
-            if(pending > 0) {
-                safeCoinTransfer(_userAddress, pending);
-            }
-        }
-        uint256 realAmount = _amount;
-        if(_amount > 0) {
-            user.lastDeposit = block.timestamp;
-           
-            pool.lpToken.safeTransferFrom(address(msg.sender), address(this), _amount);
-            if(pool.depositFee > 0) {
-                uint256 depositFeeAmount = _amount.mul(pool.depositFee).div(10000);
-                pool.lpToken.safeTransfer(feeAddress, depositFeeAmount);
-                realAmount = _amount.sub(depositFeeAmount);
-                user.amount = user.amount.add(realAmount);
-            } else {
-                user.amount = user.amount.add(_amount);
-            }
-            pool.depositedCoins = pool.depositedCoins.add(realAmount);
-            if(address(pool.contractor) != address(0)) {
-                pool.lpToken.approve(address(pool.contractor), realAmount);
-                pool.contractor.deposit(pool.pid, realAmount);
-            }
-        }
-        user.rewardDebt = user.amount.mul(pool.accCoinPerShare).div(1e12);
-        if(address(pool.lpToken) == address(coin)) {
-            depositedCoins = depositedCoins.add(realAmount);
-        }
-        emit Deposit(_userAddress, _pid, _amount);
-        checkPriceUpdate();
     }
     
     function withdraw(uint256 _pid, uint256 _amount) public nonReentrant {
@@ -357,39 +330,6 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
         checkPriceUpdate();
     }
     
-    // Withdraw without caring about rewards.
-    function withdrawWithoutRewards(uint256 _pid) public nonReentrant {
-        PoolInfo storage pool = poolInfos[_pid];
-        UserInfo storage user = userInfos[_pid][msg.sender];
-        require(user.lastDeposit.add(pool.lockPeriod * 1 days) <= block.timestamp, "ABOAT::withdrawWithoutRewards: Can't withdraw before locking period ended.");
-        uint256 amount = user.amount;
-        pool.depositedCoins = pool.depositedCoins.sub(amount);
-        user.amount = 0;
-        user.rewardDebt = 0;
-         if(address(pool.contractor) != address(0)) {
-             pool.contractor.emergencyWithdraw(pool.pid, amount, address(msg.sender));
-         } else {
-            pool.lpToken.safeTransfer(address(msg.sender), amount);
-         }
-          if(address(pool.lpToken) == address(coin)) {
-            depositedCoins = depositedCoins.sub(amount);
-        }
-         emit EmergencyWithdraw(msg.sender, _pid, amount);
-    }
-    
-    function safeCoinTransfer(address _to, uint256 _amount) internal {
-        uint256 coinBalance = coin.balanceOf(address(this)).sub(depositedCoins);
-        if (_amount > coinBalance) {
-            IERC20(coin).safeTransfer(_to, coinBalance);
-        } else {
-            IERC20(coin).safeTransfer(_to, _amount);
-        }
-    }
-    
-    function updatePrice() override external {
-        checkPriceUpdate();
-    }
-    
     function checkPriceUpdate() override public {
         if(address(coin) == address(0) || address(coin.liquidityPair()) == address(0)) {
             return;
@@ -408,6 +348,72 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
             if(shouldUpdateEmissionRate) {
                 updateEmissionRateByPriceDifference();
             }
+        }
+    }
+
+        // Withdraw without caring about rewards.
+    function withdrawWithoutRewards(uint256 _pid) public nonReentrant {
+        PoolInfo storage pool = poolInfos[_pid];
+        UserInfo storage user = userInfos[_pid][msg.sender];
+        require(user.lastDeposit.add(pool.lockPeriod * 1 days) <= block.timestamp, "ABOAT::withdrawWithoutRewards: Can't withdraw before locking period ended.");
+        uint256 amount = user.amount;
+        pool.depositedCoins = pool.depositedCoins.sub(amount);
+        user.amount = 0;
+        user.rewardDebt = 0;
+         if(address(pool.contractor) != address(0)) {
+             pool.contractor.emergencyWithdraw(pool.pid, amount, address(msg.sender));
+         } else {
+            pool.lpToken.safeTransfer(address(msg.sender), amount);
+         }
+          if(address(pool.lpToken) == address(coin)) {
+            depositedCoins = depositedCoins.sub(amount);
+        }
+         emit EmergencyWithdraw(msg.sender, _pid, amount);
+    }
+
+        function executeDeposit(uint256 _pid, uint256 _amount, address _userAddress) internal {
+        PoolInfo storage pool = poolInfos[_pid];
+        UserInfo storage user = userInfos[_pid][_userAddress];
+        updatePool(_pid);
+        if(user.amount > 0 && _userAddress == msg.sender) {
+            uint256 pending = user.amount.mul(pool.accCoinPerShare).div(1e12).sub(user.rewardDebt);
+            if(pending > 0) {
+                safeCoinTransfer(_userAddress, pending);
+            }
+        }
+        uint256 realAmount = _amount;
+        if(_amount > 0) {
+            user.lastDeposit = block.timestamp;
+           
+            pool.lpToken.safeTransferFrom(address(msg.sender), address(this), _amount);
+            if(pool.depositFee > 0) {
+                uint256 depositFeeAmount = _amount.mul(pool.depositFee).div(10000);
+                pool.lpToken.safeTransfer(feeAddress, depositFeeAmount);
+                realAmount = _amount.sub(depositFeeAmount);
+                user.amount = user.amount.add(realAmount);
+            } else {
+                user.amount = user.amount.add(_amount);
+            }
+            pool.depositedCoins = pool.depositedCoins.add(realAmount);
+            if(address(pool.contractor) != address(0)) {
+                pool.lpToken.approve(address(pool.contractor), realAmount);
+                pool.contractor.deposit(pool.pid, realAmount);
+            }
+        }
+        user.rewardDebt = user.amount.mul(pool.accCoinPerShare).div(1e12);
+        if(address(pool.lpToken) == address(coin)) {
+            depositedCoins = depositedCoins.add(realAmount);
+        }
+        emit Deposit(_userAddress, _pid, _amount);
+        checkPriceUpdate();
+    }
+    
+    function safeCoinTransfer(address _to, uint256 _amount) internal {
+        uint256 coinBalance = coin.balanceOf(address(this)).sub(depositedCoins);
+        if (_amount > coinBalance) {
+            IERC20(coin).safeTransfer(_to, coinBalance);
+        } else {
+            IERC20(coin).safeTransfer(_to, _amount);
         }
     }
     

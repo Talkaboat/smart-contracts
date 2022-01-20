@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity ^0.8.7;
+pragma solidity 0.8.7;
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
@@ -50,6 +50,12 @@ contract BaseFlipPool is Ownable, IMasterChefContractor {
     
     
     constructor(IERC20 _flipToken, IERC20 _stakeToken, IERC20 _rewardToken, address _rewardSystem, IPancakeSwapMasterChef _masterChef, address _masterEntertainer) {
+        require(address(_flipToken) != address(0), "Flip Token can't be zero address");
+        require(address(_stakeToken) != address(0), "Stake Token can't be zero address");
+        require(address(_rewardToken) != address(0), "Reward Token can't be zero address");
+        require(_rewardSystem != address(0), "Reward System can't be zero address");
+        require(address(_masterChef) != address(0), "Master Chef can't be zero address");
+        require(_masterEntertainer != address(0), "Master Entertainer can't be zero address");
         flipToken = _flipToken;
         masterChef = _masterChef;
         masterEntertainer = _masterEntertainer;
@@ -62,16 +68,19 @@ contract BaseFlipPool is Ownable, IMasterChefContractor {
                                                         Set Functions
     ===================================================================================================================== */
     function setRewardSystem(address _rewardSystem) public onlyOwner{
+        require(_rewardSystem != address(0), "Reward System can't be set to zero address");
         rewardSystem = _rewardSystem;
         emit SetRewardSystem(msg.sender, rewardSystem);
     }
     
     function setRouter(IUniswapV2Router02 _router) public onlyOwner {
+        require(address(_router) != address(0), "Router can't be set to zero address");
         router = _router;
         emit SetRouter(address(router));
     }
     
     function setMasterEntertainer(address _masterEntertainer) public onlyOwner {
+        require(_masterEntertainer != address(0), "Master Entertainer can't be set to zero address");
         masterEntertainer = _masterEntertainer;
         emit SetMasterEntertainer(masterEntertainer);
     }

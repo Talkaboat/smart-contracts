@@ -1,4 +1,6 @@
-pragma solidity ^0.8.7;
+// SPDX-License-Identifier: GPL-3.0
+
+pragma solidity 0.8.7;
 
 interface IPancakeSwapMasterChef {
     function pendingCake(uint256 _pid, address _user) external view returns (uint256);

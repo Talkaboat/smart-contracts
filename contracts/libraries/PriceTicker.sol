@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 
-pragma solidity ^0.8.7;
+pragma solidity 0.8.7;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -48,6 +48,7 @@ abstract contract PriceTicker is Ownable, TimeLock {
     
     function setCoin(AboatToken _coin) public onlyOwner locked("setCoin") {
         require(coin != _coin, "ABOAT::setCoin: Can't replace the same coin");
+        require(address(_coin) != address(0), "ABOAT::setCoin: Can't set coin to zero address");
         address previousCoin = address(coin);
         coin = _coin;
         lpAddress = coin.liquidityPair();

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.7;
+pragma solidity 0.8.7;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -50,7 +50,7 @@ contract AboatToken is ERC20, Liquify {
                                                         Events
     ===================================================================================================================== */
     event ChangedHighFeeState(bool indexed state);
-    event MasteEntertainerTransferred(address indexed previousMasterEntertainer, address indexed newMasterEntertainer);
+    event MasterEntertainerTransferred(address indexed previousMasterEntertainer, address indexed newMasterEntertainer);
     event MaxDistributionChanged(uint256 indexed newMaxDistribution);
     event RequestedWhitelist(address indexed requestee);
     event Blacklisted(address indexed user);
@@ -62,7 +62,6 @@ contract AboatToken is ERC20, Liquify {
     ===================================================================================================================== */
     
     constructor() ERC20("Aboat Token", "ABOAT") {
-        // Token distribution: https://documentation.talkaboat.online/tokenomics/talkaboat-basics.html
         mint(msg.sender, 600000000000 ether);
         excludeFromAll(msg.sender);
     }
@@ -76,7 +75,7 @@ contract AboatToken is ERC20, Liquify {
         _masterEntertainer = IMasterEntertainer(_newMasterEntertainer);
         excludeFromAll(_newMasterEntertainer);
         transferOwnership(_newMasterEntertainer);
-        emit MasteEntertainerTransferred(previousEntertainer, _newMasterEntertainer);
+        emit MasterEntertainerTransferred(previousEntertainer, _newMasterEntertainer);
     }
     
     function setMaxDistribution(uint256 _newDistribution) public onlyMaintainerOrOwner locked("max_distribution") {
@@ -86,12 +85,14 @@ contract AboatToken is ERC20, Liquify {
     }
      
     function setMaxAccBalance(uint16 maxBalance) public onlyMaintainerOrOwner {
+        require(maxBalance > 100, "Max account balance can't be lower than 1% of total supply");
         uint16 previousMaxBalance = maxAccBalance;
         maxAccBalance = maxBalance;
         emit MaxAccBalanceChanged(previousMaxBalance, maxAccBalance);
     }
     
     function setMaxTransactionQuantity(uint16 quantity) public onlyMaintainerOrOwner {
+        require(quantity > 10, "Max transaction size can't be lower than 0.1% of total supply");
         uint16 previous = maxTxQuantity;
         maxTxQuantity = quantity;
         emit MaxTransactionQuantityChanged(previous, maxTxQuantity);
@@ -111,8 +112,8 @@ contract AboatToken is ERC20, Liquify {
         return _excludedFromFeesAsSender[_account];
     }
     
-    function isExcludedFromRecieverTax(address _account) public view returns (bool) {
-        return _excludedFromFeesAsReciever[_account];
+    function isExcludedFromReceiverTax(address _account) public view returns (bool) {
+        return _excludedFromFeesAsReceiver[_account];
     }
     
     function hasRequestedWhitelist(address user) public onlyMaintainerOrOwner view returns (bool) {
@@ -217,12 +218,7 @@ contract AboatToken is ERC20, Liquify {
         _mint(_to, _amount);
     }
     
-    function burn(uint256 _amount) public onlyMaintainerOrOwner {
-        require(_amount <= balanceOf(address(this)), "ABOAT::burn: amount exceeds balance");
-        _burn(address(this), _amount);
-    }
-    
-    function _transfer(address sender, address recipient, uint256 amount) internal virtual override {
+    function _transfer(address sender, address recipient, uint256 amount) internal virtual override nonReentrant {
         require(sender != address(0), "ABOAT::_transfer: transfer from the zero address");
         require(recipient != address(0), "ABOAT::_transfer: transfer to the zero address");
         require(amount > 0, "ABOAT::_transfer:Transfer amount must be greater than zero");
@@ -230,11 +226,11 @@ contract AboatToken is ERC20, Liquify {
         //Anti-Bot: If someone sends too many recurrent transactions in a short amount of time he will be blacklisted
         require(!blacklisted[sender], "ABOAT::_transfer:You're currently blacklisted. Please report to service@talkaboat.online if you want to get removed from blacklist!");
         //Anti-Bot: Disable transactions with more than 1% of total supply
-        require(amount * 10000 / totalSupply() <= maxTxQuantity || sender == owner() || sender == maintainer() || _excludedFromFeesAsSender[sender] || _excludedFromFeesAsReciever[sender], "Your transfer exceeds the maximum possible amount per transaction");
+        require(amount * 10000 / totalSupply() <= maxTxQuantity || sender == owner() || sender == maintainer() || _excludedFromFeesAsSender[sender] || _excludedFromFeesAsReceiver[sender], "Your transfer exceeds the maximum possible amount per transaction");
         //Anti-Whale: Only allow wallets to hold a certain percentage of total supply
-        require((amount + getBalanceOf(recipient)) * 10000 / totalSupply() <= maxAccBalance || recipient == owner() || recipient == maintainer() || recipient == address(this) || _excludedFromFeesAsReciever[recipient] || _excludedFromFeesAsSender[recipient], "ABOAT::_transfer:Balance of recipient can't exceed maxAccBalance");
+        require((amount + getBalanceOf(recipient)) * 10000 / totalSupply() <= maxAccBalance || recipient == owner() || recipient == maintainer() || recipient == address(this) || _excludedFromFeesAsReceiver[recipient] || _excludedFromFeesAsSender[recipient], "ABOAT::_transfer:Balance of recipient can't exceed maxAccBalance");
         //Liquidity Provision safety
-        require(isContractActive || sender == owner() || sender == maintainer() || _excludedFromFeesAsReciever[recipient] || _excludedFromFeesAsSender[sender], "ABOAT::_transfer:Contract is not yet open for community");
+        require(isContractActive || sender == owner() || sender == maintainer() || _excludedFromFeesAsReceiver[recipient] || _excludedFromFeesAsSender[sender], "ABOAT::_transfer:Contract is not yet open for community");
         if (address(_router) != address(0)
             && _liquidityPair != address(0)
             && sender != _liquidityPair
@@ -244,7 +240,7 @@ contract AboatToken is ERC20, Liquify {
             && !isLiquifyActive) {
             swapAndLiquify();
         }
-        if ((!isHighFeeActive || sender == maintainer() || sender == owner() || _excludedFromFeesAsSender[sender] && _excludedFromFeesAsReciever[recipient]) && (recipient == address(0) || maximumTransferTaxRate == 0 || _excludedFromFeesAsReciever[recipient] || _excludedFromFeesAsSender[sender])) {
+        if ((!isHighFeeActive || sender == maintainer() || sender == owner() || _excludedFromFeesAsSender[sender] && _excludedFromFeesAsReceiver[recipient]) && (recipient == address(0) || maximumTransferTaxRate == 0 || _excludedFromFeesAsReceiver[recipient] || _excludedFromFeesAsSender[sender])) {
             super._transfer(sender, recipient, amount);
         } else {
             uint256 taxAmount = amount.mul(getTaxFee(sender)).div(10000);

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.7;
+pragma solidity 0.8.7;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -25,10 +25,10 @@ contract PreSale is Ownable {
     uint256 public soldTokens; //how many token are currently sold
     uint256 public saleEnded = 0; //block when the sale ended (0 = still ongoing)
     uint256 public afterDays; //after how many days can investors make their initial claim
-    uint256 public period = 30; //How many days are between each claim 
-    uint256 public initialClaimPercentage = 100; //How much can investors claim directly after sale ended (default: 40%)
-    uint256 public percentagePerPeriod = 50; //How much can investors claim per period after the initial claim (default: 5% -> 1 year vesting)
-    uint256 public cliffPeriod = 90; //How many days after initial claim before percentagePerPeriod takes place
+    uint256 constant public period = 30; //How many days are between each claim 
+    uint256 constant public initialClaimPercentage = 100; //How much can investors claim directly after sale ended | 100 = 10%
+    uint256 constant public percentagePerPeriod = 50; //How much can investors claim per period after the initial claim | 100 = 10%
+    uint256 constant public cliffPeriod = 90; //How many days after initial claim before percentagePerPeriod takes place
     
     bool public requireWhitelist = true;    //flag to determine whether buyers have to be whitelisted or not
     
@@ -46,6 +46,8 @@ contract PreSale is Ownable {
     event Bought(address indexed buyer, uint256 indexed amount);
     event ChangeRewardToken(address indexed newToken);
     event DepositedInVestingPool(address indexed owner, uint256 indexed amount);
+    event AddedToWhitelist(uint256 indexed amount);
+    event AddedToWhitelistFromSaft(uint256 indexed amount);
     
     constructor(IERC20 _rewardToken, IERC20 _paymentToken, uint256 _limit, uint256 _softcap, uint256 _price) {
         require(_price > 0, "ABOAT::error: Price has to be higher than zero");
@@ -105,20 +107,26 @@ contract PreSale is Ownable {
     }    
     
     function whitelist(address[] memory addresses) public onlyOwner {
+        require(addresses.length <= 100, "ABOAT::whitelist: You can't add more than 100 addresses at the same time");
         for(uint index = 0; index < addresses.length; index++) {
             whitelisted[addresses[index]] = true;
         }
+        emit AddedToWhitelist(addresses.length);
     }
 
     function whitelistFromSAFT(address[] memory addresses, uint256[] memory amounts) public onlyOwner {
+        require(addresses.length <= 100, "ABOAT::whitelist: You can't add more than 100 addresses at the same time");
+        uint256 sumOfSoldTokens = 0;
         for(uint index = 0; index < addresses.length; index++) {
             whitelisted[addresses[index]] = true;
             uint256 amountBought = amounts[index].mul(1e18).div(pricePerToken);
             require(getRemainingBalance().sub(amountBought) > 0, "ABOAT::buy: Amount would exceed the remaining balance");
             bought[addresses[index]] = bought[addresses[index]].add(amounts[index]);
-            soldTokens = soldTokens.add(amountBought);
+            sumOfSoldTokens = sumOfSoldTokens.add(amountBought);
             lastClaimAddress[addresses[index]] = address(paymentToken);
         }
+        soldTokens = soldTokens.add(sumOfSoldTokens);
+        emit AddedToWhitelistFromSaft(addresses.length);
     }
     
     /* =====================================================================================================================
