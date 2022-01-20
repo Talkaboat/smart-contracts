@@ -86,7 +86,7 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
         require(address(_coin) != address(0), "Aboat Token can't be zero address");
         require(_devaddr != address(0), "Dev address should not be zero address");
         require(_feeAddress != address(0), "Fee address should not be zero address");
-        coin = AboatToken(_coin);
+        coin = _coin;
         devAddress = _devaddr;
         feeAddress = _feeAddress;
         coinPerBlock = 2000 ether;
