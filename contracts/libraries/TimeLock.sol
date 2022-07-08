@@ -14,6 +14,7 @@ abstract contract TimeLock is Ownable {
     /* =====================================================================================================================
                                                         Variables
     ===================================================================================================================== */
+    bool public isLockEnabled = false;
     mapping(string => uint256) public timelock;
     uint256 private constant _TIMELOCK = 1 days;
     address private _maintainer;  
@@ -23,6 +24,7 @@ abstract contract TimeLock is Ownable {
     ===================================================================================================================== */
     event MaintainerTransferred(address indexed previousMaintainer, address indexed newMaintainer);
     event UnlockedFunction(string indexed functionName, uint256 indexed unlockedAt);
+    event EnabledLock();
     
     /* =====================================================================================================================
                                                         Modifier
@@ -30,7 +32,7 @@ abstract contract TimeLock is Ownable {
     //After unlock we have to wait for _TIMELOCK before we can call the Function
     //Additionally we have a time window of 24 hours to call the function to prevent pre-unlocked calls
     modifier locked(string memory _fn) {
-        require((timelock[_fn] != 0 && timelock[_fn] <= block.timestamp && timelock[_fn] + 1 days >= block.timestamp), "Function is locked");
+        require(!isLockEnabled || (timelock[_fn] != 0 && timelock[_fn] <= block.timestamp && timelock[_fn] + _TIMELOCK >= block.timestamp), "Function is locked");
         _;
         lockFunction(_fn);
     }
@@ -59,6 +61,11 @@ abstract contract TimeLock is Ownable {
         address previousMaintainer = _maintainer;
         _maintainer = _newMaintainer;
         emit MaintainerTransferred(previousMaintainer, _maintainer);
+    }
+    
+    function setTimelockEnabled() public onlyMaintainerOrOwner {
+        isLockEnabled = true;
+        emit EnabledLock();
     }
 
     /* =====================================================================================================================

@@ -64,6 +64,7 @@ contract AboatToken is ERC20, Liquify {
     constructor() ERC20("Aboat Token", "ABOAT") {
         mint(msg.sender, 600000000000 ether);
         excludeFromAll(msg.sender);
+        setTimelockEnabled();
     }
     
     /* =====================================================================================================================
@@ -231,15 +232,6 @@ contract AboatToken is ERC20, Liquify {
         require((amount + getBalanceOf(recipient)) * 10000 / totalSupply() <= maxAccBalance || recipient == owner() || recipient == maintainer() || recipient == address(this) || _excludedFromFeesAsReceiver[recipient] || _excludedFromFeesAsSender[recipient], "ABOAT::_transfer:Balance of recipient can't exceed maxAccBalance");
         //Liquidity Provision safety
         require(isContractActive || sender == owner() || sender == maintainer() || _excludedFromFeesAsReceiver[recipient] || _excludedFromFeesAsSender[sender], "ABOAT::_transfer:Contract is not yet open for community");
-        if (address(_router) != address(0)
-            && _liquidityPair != address(0)
-            && sender != _liquidityPair
-            && !_excludedFromFeesAsSender[sender]
-            && sender != owner()
-            && sender != maintainer()
-            && !isLiquifyActive) {
-            swapAndLiquify();
-        }
         if ((!isHighFeeActive || sender == maintainer() || sender == owner() || _excludedFromFeesAsSender[sender] && _excludedFromFeesAsReceiver[recipient]) && (recipient == address(0) || maximumTransferTaxRate == 0 || _excludedFromFeesAsReceiver[recipient] || _excludedFromFeesAsSender[sender])) {
             super._transfer(sender, recipient, amount);
         } else {
@@ -260,6 +252,7 @@ contract AboatToken is ERC20, Liquify {
             donationFeesPaid += donationAmount;
             liquidityFeesPaid += liquidityAmount;
         }
+        
         checkPriceUpdate();
     }
 
