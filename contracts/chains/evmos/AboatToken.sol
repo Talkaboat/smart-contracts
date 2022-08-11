@@ -9,9 +9,9 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
-import "./libraries/TransferHelper.sol";
+import "../../libraries/TransferHelper.sol";
 import "./libraries/Liquify.sol";
-import "./interfaces/IMasterEntertainer.sol";
+import "../../interfaces/IMasterEntertainer.sol";
 
 
 

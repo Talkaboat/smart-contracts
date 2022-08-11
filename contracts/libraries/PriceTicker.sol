@@ -128,8 +128,10 @@ abstract contract PriceTicker is Ownable, TimeLock {
     function checkPriceUpdate() virtual public  {
         if (lastPriceUpdateBlock < block.timestamp - 1 hours) {
             uint256 tokenPrice = getTokenPrice();
-            hourlyPrices[hourlyIndex++] = tokenPrice;
-            lastPriceUpdateBlock = block.timestamp;
+            if(tokenPrice > 0) {
+                hourlyPrices[hourlyIndex++] = tokenPrice;
+                lastPriceUpdateBlock = block.timestamp;
+            }
         }
 
     }
