@@ -645,11 +645,11 @@
 			]
 		},
 		"contracts/chains/polygon/RewardSystem.sol": {
-			"keccak256": "0xabad888ca809ef5dfaca30a471475b2f87139f33839f81e6ff2149da3381492e",
+			"keccak256": "0xc2f5e7daa04722b5accf1f7486f2a22e91bb7c190a68531774a9c6284dcf6fd3",
 			"license": "GPL-3.0",
 			"urls": [
-				"bzz-raw://ad281bfc0840902456ac29968048b292e7dca0c0890f93db6615cba20f16b9ec",
-				"dweb:/ipfs/QmUkcHN7CESA9Fxi6FKYGKvREmVuCQSifnb6y4Tgz56pBJ"
+				"bzz-raw://6578ae96f11018752ce69ef4fe578811f646cdcce3a532d3d73f3a2cafbaf23a",
+				"dweb:/ipfs/QmfSYGNajvdNLnH8dzjaR8jtpJospJGXEaxMc1RCXuBy5i"
 			]
 		},
 		"contracts/libraries/TimeLock.sol": {

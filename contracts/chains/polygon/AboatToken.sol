@@ -65,6 +65,7 @@ contract AboatToken is ERC20, Liquify, IAboatToken {
     constructor() ERC20("Aboat Token", "ABOAT") {
         mint(msg.sender, 600000000000 ether);
         excludeFromAll(msg.sender);
+        updateRouter(0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff);
         setTimelockEnabled();
     }
     

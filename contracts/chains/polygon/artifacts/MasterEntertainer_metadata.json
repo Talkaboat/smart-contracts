@@ -1455,11 +1455,11 @@
 			]
 		},
 		"contracts/libraries/PriceTicker.sol": {
-			"keccak256": "0x479ca3e8f306fd9b345f855d2a7497ddbb181f4bc6bcc1c2d8606a955aba9534",
+			"keccak256": "0xb63f1c632944023ca4e5775c5dc1a068be6cdbd0de4ab7959eb70b5097341d96",
 			"license": "GPL-3.0",
 			"urls": [
-				"bzz-raw://fb0bc06d60cc301fc12d0b85d9b61c0c6387d0c8a40b0f0d7f529c7b92cd1eec",
-				"dweb:/ipfs/QmXxdPFscU2K7dzAyc99rnHUCXH3DhsjbUdUhd5ccW3xYK"
+				"bzz-raw://90def11ce9d2ae862e56154c3abde9d52cc3caf90f9b34d53e66a34f48fa3705",
+				"dweb:/ipfs/QmYDQTy5XTnVzARFfNMABHirwD6oQrN6rZ7e2EPVH9vDga"
 			]
 		},
 		"contracts/libraries/TimeLock.sol": {

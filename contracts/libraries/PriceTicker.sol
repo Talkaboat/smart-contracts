@@ -70,7 +70,10 @@ abstract contract PriceTicker is Ownable, TimeLock {
                 amount++;
             }
         }
-        return averagePrice.div(amount);
+        if(averagePrice > 0 && amount > 0) {
+            return averagePrice.div(amount);
+        }
+        return averagePrice;
     }  
     
     function getPriceDifference(int256 newPrice, int256 oldPrice) public pure returns (uint256) {

@@ -10,8 +10,8 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./TransferHelper.sol";
-import "./TimeLock.sol";
+import "../../../libraries/TransferHelper.sol";
+import "../../../libraries/TimeLock.sol";
 import "../interfaces/IKaiDexRouter.sol";
 
 abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {

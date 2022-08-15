@@ -542,19 +542,19 @@
 			]
 		},
 		"contracts/interfaces/IAboatToken.sol": {
-			"keccak256": "0xfe5ea1c26cf33c3443b2fefcca006848513842676cee695bfcc4f0fc3d7ccdd3",
+			"keccak256": "0x1e559a8890099d8d38b729c5a77f27af27f59a4e7451fbd38e2dc086c5470521",
 			"license": "GPL-3.0",
 			"urls": [
-				"bzz-raw://43e0e533e04628270580a4a50e895321d54b295f1adab0f1276073eeb575200c",
-				"dweb:/ipfs/QmbSFnyB4Zd6JdMnd9mo66UpSmL3bfZMeg34CE3PdXA8D8"
+				"bzz-raw://1445c305a422a231906499b743b958e4c65007cec2d46a09de5b608e2e1a45bb",
+				"dweb:/ipfs/QmUtJadmjcWHrgvmDqsUsnkjAKuwnSFmffjXx8fDpDWSDH"
 			]
 		},
 		"contracts/libraries/PriceTicker.sol": {
-			"keccak256": "0x479ca3e8f306fd9b345f855d2a7497ddbb181f4bc6bcc1c2d8606a955aba9534",
+			"keccak256": "0xb63f1c632944023ca4e5775c5dc1a068be6cdbd0de4ab7959eb70b5097341d96",
 			"license": "GPL-3.0",
 			"urls": [
-				"bzz-raw://fb0bc06d60cc301fc12d0b85d9b61c0c6387d0c8a40b0f0d7f529c7b92cd1eec",
-				"dweb:/ipfs/QmXxdPFscU2K7dzAyc99rnHUCXH3DhsjbUdUhd5ccW3xYK"
+				"bzz-raw://90def11ce9d2ae862e56154c3abde9d52cc3caf90f9b34d53e66a34f48fa3705",
+				"dweb:/ipfs/QmYDQTy5XTnVzARFfNMABHirwD6oQrN6rZ7e2EPVH9vDga"
 			]
 		},
 		"contracts/libraries/TimeLock.sol": {

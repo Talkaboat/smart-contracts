@@ -18,7 +18,7 @@ contract RewardSystem is Ownable, TimeLock {
                                                         Variables
     ===================================================================================================================== */
     mapping(address => bool) public _rewards;
-    uint256 public _gasCost = 2100000000000000;
+    uint256 public _gasCost = 50 gwei;
     
     address public _oracleWallet = 0x76049b7cAaB30b8bBBdcfF3A1059d9147dBF7B19;
     address public _devWallet = 0xc559aCc356D3037EC6dbc33a20587051188b8634;
