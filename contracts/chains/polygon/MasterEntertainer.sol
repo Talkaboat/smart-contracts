@@ -14,7 +14,7 @@ import "../../libraries/TransferHelper.sol";
 import "../../libraries/PriceTicker.sol";
 import "../../interfaces/IMasterChefContractor.sol";
 import "../../interfaces/IMasterEntertainer.sol";
-import "./AboatToken.sol";
+import "../../interfaces/IAboatToken.sol";
 
 contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEntertainer {
     using SafeMath for uint256;
@@ -82,20 +82,20 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
     ===================================================================================================================== */
 
     
-    constructor(AboatToken _coin, address _devaddr, address _feeAddress, uint256 _startBlock) {
+    constructor(address _coin, address _devaddr, address _feeAddress, uint256 _startBlock) {
         require(address(_coin) != address(0), "Aboat Token can't be zero address");
         require(_devaddr != address(0), "Dev address should not be zero address");
         require(_feeAddress != address(0), "Fee address should not be zero address");
-        coin = _coin;
+        coin = IAboatToken(_coin);
         devAddress = _devaddr;
         feeAddress = _feeAddress;
         coinPerBlock = 2000 ether;
         startBlock = _startBlock;
         //alloc point, lp token, pool id, deposit fee, contractor, lock period in days, update pool
-        add(100, _coin, 0, 400, IMasterChefContractor(address(0)), 30, true, false);
-        add(150, _coin, 0, 300, IMasterChefContractor(address(0)), 90, true, false);
-        add(250, _coin, 0, 200, IMasterChefContractor(address(0)), 180, true, false);
-        add(400, _coin, 0, 100, IMasterChefContractor(address(0)), 360, true, false);
+        add(100, IERC20(_coin), 0, 400, IMasterChefContractor(address(0)), 30, true, false);
+        add(150, IERC20(_coin), 0, 300, IMasterChefContractor(address(0)), 90, true, false);
+        add(250, IERC20(_coin), 0, 200, IMasterChefContractor(address(0)), 180, true, false);
+        add(400, IERC20(_coin), 0, 100, IMasterChefContractor(address(0)), 360, true, false);
         setTimelockEnabled();
     }  
 
@@ -410,11 +410,12 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
     }
     
     function safeCoinTransfer(address _to, uint256 _amount) internal {
-        uint256 coinBalance = coin.balanceOf(address(this)).sub(depositedCoins);
+        IERC20 _coin = IERC20(address(coin));
+        uint256 coinBalance = _coin.balanceOf(address(this)).sub(depositedCoins);
         if (_amount > coinBalance) {
-            IERC20(coin).safeTransfer(_to, coinBalance);
+            _coin.safeTransfer(_to, coinBalance);
         } else {
-            IERC20(coin).safeTransfer(_to, _amount);
+            _coin.safeTransfer(_to, _amount);
         }
     }
     

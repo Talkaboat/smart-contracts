@@ -11,8 +11,8 @@ import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./TransferHelper.sol";
-import "./TimeLock.sol";
+import "../../../libraries/TransferHelper.sol";
+import "../../../libraries/TimeLock.sol";
 
 abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
     using Address for address;
@@ -34,8 +34,8 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
     
     uint256 public _minAmountToLiquify = 100000 ether;
     
-    address public _devWallet = 0x2EA9CA0ca8043575f2189CFF9897B575b0c7e857;          //Wallet where the dev fees will go to
-    address public _donationWallet = 0xA7C08AEdCe8caDC3bFb622bd7B651993d1cd24e4;     //Wallet where donation fees will go to
+    address public _devWallet = 0xc559aCc356D3037EC6dbc33a20587051188b8634;          //Wallet where the dev fees will go to
+    address public _donationWallet = 0x2EA9CA0ca8043575f2189CFF9897B575b0c7e857;     //Wallet where donation fees will go to
     address public _rewardWallet = 0x2EA9CA0ca8043575f2189CFF9897B575b0c7e857;     //Wallet where rewards will be distributed
     
     address public _liquidityPair;
@@ -73,7 +73,7 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
         excludeFromAll(msg.sender);
         excludeFromAll(_devWallet);
         excludeFromAll(_donationWallet);
-        updateRouter(0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3);
+        updateRouter(0xbdd4e5660839a088573191A9889A262c0Efc0983);
     }
     
     /* =====================================================================================================================

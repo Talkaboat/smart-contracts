@@ -7,8 +7,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
-import "./libraries/TransferHelper.sol";
-import "./libraries/TimeLock.sol";
+import "../../libraries/TransferHelper.sol";
+import "../../libraries/TimeLock.sol";
 
 contract RewardSystem is Ownable, TimeLock {
     using Address for address;
@@ -20,12 +20,12 @@ contract RewardSystem is Ownable, TimeLock {
     mapping(address => bool) public _rewards;
     uint256 public _gasCost = 2100000000000000;
     
-    address public _oracleWallet = 0x912E637522dC32A9653c5B7FD9028c7Ae3ae3Ff6;
-    address public _devWallet = 0x2EA9CA0ca8043575f2189CFF9897B575b0c7e857;
+    address public _oracleWallet = 0x76049b7cAaB30b8bBBdcfF3A1059d9147dBF7B19;
+    address public _devWallet = 0xc559aCc356D3037EC6dbc33a20587051188b8634;
     
     IERC20 public _rewardToken;
     
-    IUniswapV2Router02 public _router = IUniswapV2Router02(0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3);
+    IUniswapV2Router02 public _router = IUniswapV2Router02(0xbdd4e5660839a088573191A9889A262c0Efc0983);
     
     /* =====================================================================================================================
                                                         Events

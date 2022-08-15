@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
-import "../AboatToken.sol";
+import "../interfaces/IAboatToken.sol";
 import "./TimeLock.sol";
 
 abstract contract PriceTicker is Ownable, TimeLock {
@@ -19,7 +19,7 @@ abstract contract PriceTicker is Ownable, TimeLock {
     /* =====================================================================================================================
                                                         Variables
     ===================================================================================================================== */
-    AboatToken public coin;
+    IAboatToken public coin;
     address public lpAddress;
     
     uint256[] public hourlyPrices;
@@ -46,7 +46,7 @@ abstract contract PriceTicker is Ownable, TimeLock {
                                                         Set Functions
     ===================================================================================================================== */
     
-    function setCoin(AboatToken _coin) public onlyOwner locked("setCoin") {
+    function setCoin(IAboatToken _coin) public onlyOwner locked("setCoin") {
         require(coin != _coin, "ABOAT::setCoin: Can't replace the same coin");
         require(address(_coin) != address(0), "ABOAT::setCoin: Can't set coin to zero address");
         address previousCoin = address(coin);
