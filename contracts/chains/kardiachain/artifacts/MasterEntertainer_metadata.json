@@ -1438,11 +1438,11 @@
 			]
 		},
 		"contracts/chains/kardiachain/MasterEntertainer.sol": {
-			"keccak256": "0x86b9ca64741cbcee6c41075d04cd75ca418b2210731ac6b05163041dc22e6a0c",
+			"keccak256": "0x0e6e6a549394c3cec46a12919f9a7ea8075d7a8bbffd74026d645c33a2badab7",
 			"license": "GPL-3.0",
 			"urls": [
-				"bzz-raw://feab61df0726007b8b68faa105c25f139d8f0ef24dd46794b7cbb3f425d893fe",
-				"dweb:/ipfs/QmPQLs7uDF3h5MG3a5Y3dJsBcqctGsMem55mRWN57Jxrio"
+				"bzz-raw://8f7887b6293c1ac4a4f0b455628c500c740bf3016b0683b97d35d83ffa70d643",
+				"dweb:/ipfs/QmaJV2NwVgWuyTHjiLVsL1BqAQw88A9pHJ6bUMSetqQZkw"
 			]
 		},
 		"contracts/chains/kardiachain/interfaces/IKaiDexRouter.sol": {

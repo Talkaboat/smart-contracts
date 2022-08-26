@@ -97,10 +97,10 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
         add(150, coin, 0, 300, IMasterChefContractor(address(0)), 90, true, false);
         add(250, coin, 0, 200, IMasterChefContractor(address(0)), 180, true, false);
         add(400, coin, 0, 100, IMasterChefContractor(address(0)), 360, true, false);
-        add(150, pair, 0, 400, IMasterChefContractor(address(0)), 30, true, false);
-        add(250, pair, 0, 300, IMasterChefContractor(address(0)), 90, true, false);
-        add(400, pair, 0, 200, IMasterChefContractor(address(0)), 180, true, false);
-        add(600, pair, 0, 100, IMasterChefContractor(address(0)), 360, true, false);
+        add(150, pair, 0, 400, IMasterChefContractor(address(0)), 30, true, true);
+        add(250, pair, 0, 300, IMasterChefContractor(address(0)), 90, true, true);
+        add(400, pair, 0, 200, IMasterChefContractor(address(0)), 180, true, true);
+        add(600, pair, 0, 100, IMasterChefContractor(address(0)), 360, true, true);
         setTimelockEnabled();
     }  
 
