@@ -13,13 +13,14 @@ import "../../libraries/TransferHelper.sol";
 import "./libraries/Liquify.sol";
 import "../../interfaces/IMasterEntertainer.sol";
 
+import "../../interfaces/IAboatToken.sol";
 
 
 /** @dev Implements Liquify which implements the TimeLock library.
  * @dev We use the maintainer for to hold the ability to change important attributes
  * @dev Owner will be given to the MasterEntertainer contract to mint new tokens for staking/yield farming
 */
-contract AboatToken is ERC20, Liquify {
+contract AboatToken is ERC20, Liquify, IAboatToken {
     using SafeMath for uint256;
     using Address for address;
     
@@ -64,7 +65,8 @@ contract AboatToken is ERC20, Liquify {
     constructor() ERC20("Aboat Token", "ABOAT") {
         mint(msg.sender, 600000000000 ether);
         excludeFromAll(msg.sender);
-        setTimelockEnabled();
+        //updateRouter(0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff);
+        //setTimelockEnabled();
     }
     
     /* =====================================================================================================================
@@ -146,7 +148,7 @@ contract AboatToken is ERC20, Liquify {
         }
     }
     
-    function liquidityPair() public view returns (address) {
+    function liquidityPair() public override view returns (address) {
         return _liquidityPair;
     }
     
@@ -161,7 +163,7 @@ contract AboatToken is ERC20, Liquify {
         return IERC20(getLiquidityTokenAddress()).balanceOf(address(this));
     }
     
-    function canMintNewCoins(uint256 _amount) public view returns (bool) {
+    function canMintNewCoins(uint256 _amount) public override view returns (bool) {
         return totalSupply() + _amount <= maxDistribution;
     }
     
@@ -214,7 +216,7 @@ contract AboatToken is ERC20, Liquify {
         TransferHelper.safeTransferETH(msg.sender, address(this).balance);
     }
     
-    function mint(address _to, uint256 _amount) public onlyOwner {
+    function mint(address _to, uint256 _amount) public override onlyOwner {
         require(totalSupply() + _amount <= maxDistribution, "ABOAT::mint: Can't mint more aboat token than maxDistribution allows");
         _mint(_to, _amount);
     }
@@ -232,7 +234,7 @@ contract AboatToken is ERC20, Liquify {
         require((amount + getBalanceOf(recipient)) * 10000 / totalSupply() <= maxAccBalance || recipient == owner() || recipient == maintainer() || recipient == address(this) || _excludedFromFeesAsReceiver[recipient] || _excludedFromFeesAsSender[recipient], "ABOAT::_transfer:Balance of recipient can't exceed maxAccBalance");
         //Liquidity Provision safety
         require(isContractActive || sender == owner() || sender == maintainer() || _excludedFromFeesAsReceiver[recipient] || _excludedFromFeesAsSender[sender], "ABOAT::_transfer:Contract is not yet open for community");
-        if ((!isHighFeeActive || sender == maintainer() || sender == owner() || _excludedFromFeesAsSender[sender] && _excludedFromFeesAsReceiver[recipient]) && (recipient == address(0) || maximumTransferTaxRate == 0 || _excludedFromFeesAsReceiver[recipient] || _excludedFromFeesAsSender[sender])) {
+        if ((!isHighFeeActive || sender == maintainer() || sender == owner() || (_excludedFromFeesAsSender[sender] && _excludedFromFeesAsReceiver[recipient])) && (recipient == address(0) || maximumTransferTaxRate == 0 || _excludedFromFeesAsReceiver[recipient] || _excludedFromFeesAsSender[sender])) {
             super._transfer(sender, recipient, amount);
         } else {
             uint256 taxAmount = amount.mul(getTaxFee(sender)).div(10000);

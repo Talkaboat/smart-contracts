@@ -359,6 +359,19 @@
 				"type": "function"
 			},
 			{
+				"inputs": [],
+				"name": "timeMultiplier",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
 				"inputs": [
 					{
 						"internalType": "address",
@@ -434,7 +447,7 @@
 			"bytecodeHash": "ipfs"
 		},
 		"optimizer": {
-			"enabled": true,
+			"enabled": false,
 			"runs": 200
 		},
 		"remappings": []
@@ -489,11 +502,11 @@
 			]
 		},
 		"contracts/Vesting.sol": {
-			"keccak256": "0xec4aa341acb3a0de61b2beaa71b4ab783dd0f5d7f291e3e68c369758d234ca99",
+			"keccak256": "0x496cf58deb11ca1f6da310fae155c360f44bc78c28d6e46e999c83bf533d7e96",
 			"license": "GPL-3.0",
 			"urls": [
-				"bzz-raw://56988f2fb83a04a76c901a012c52e341fc1a78e3ac49327654c653733630d701",
-				"dweb:/ipfs/QmTSoKVz5fsqGjKJpuZYnCAehuVAk8XahbAgC43odaUs6G"
+				"bzz-raw://fb3bda94256e51ce9e11c2547128ab3d4ff709ad803bccffbd1ea738566b17af",
+				"dweb:/ipfs/QmQUX7rLypBqxgw4mC2q95PRWpFNzhwSzXaRubXG1RNJUV"
 			]
 		},
 		"contracts/libraries/TransferHelper.sol": {

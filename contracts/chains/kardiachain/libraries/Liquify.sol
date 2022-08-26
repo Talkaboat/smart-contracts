@@ -74,7 +74,7 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
         excludeFromAll(msg.sender);
         excludeFromAll(_devWallet);
         excludeFromAll(_donationWallet);
-        updateRouter(0xbAFcdabe65A03825a131298bE7670c0aEC77B37f);
+        //updateRouter(0xbAFcdabe65A03825a131298bE7670c0aEC77B37f);
     }
     
     /* =====================================================================================================================

@@ -11,8 +11,8 @@ import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./TransferHelper.sol";
-import "./TimeLock.sol";
+import "../../../libraries/TransferHelper.sol";
+import "../../../libraries/TimeLock.sol";
 
 abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
     using Address for address;
@@ -72,7 +72,6 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
     constructor() {
         excludeFromAll(_devWallet);
         excludeFromAll(_donationWallet);
-        updateRouter(0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3);
     }
     
     /* =====================================================================================================================

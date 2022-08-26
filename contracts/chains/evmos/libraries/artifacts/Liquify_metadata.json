@@ -1,6 +1,6 @@
 {
 	"compiler": {
-		"version": "0.8.4+commit.c7e474f2"
+		"version": "0.8.7+commit.e28d00a7"
 	},
 	"language": "Solidity",
 	"output": {
@@ -46,57 +46,13 @@
 						"type": "address"
 					}
 				],
-				"name": "ChangedLiqudityPair",
+				"name": "ChangedLiquidityPair",
 				"type": "event"
 			},
 			{
 				"anonymous": false,
-				"inputs": [
-					{
-						"indexed": true,
-						"internalType": "address",
-						"name": "caller",
-						"type": "address"
-					},
-					{
-						"indexed": false,
-						"internalType": "uint256",
-						"name": "previousRate",
-						"type": "uint256"
-					},
-					{
-						"indexed": false,
-						"internalType": "uint256",
-						"name": "newRate",
-						"type": "uint256"
-					}
-				],
-				"name": "DevRateUpdated",
-				"type": "event"
-			},
-			{
-				"anonymous": false,
-				"inputs": [
-					{
-						"indexed": true,
-						"internalType": "address",
-						"name": "caller",
-						"type": "address"
-					},
-					{
-						"indexed": false,
-						"internalType": "uint256",
-						"name": "previousRate",
-						"type": "uint256"
-					},
-					{
-						"indexed": false,
-						"internalType": "uint256",
-						"name": "newRate",
-						"type": "uint256"
-					}
-				],
-				"name": "DonationRateUpdated",
+				"inputs": [],
+				"name": "EnabledLock",
 				"type": "event"
 			},
 			{
@@ -222,31 +178,6 @@
 						"type": "address"
 					},
 					{
-						"indexed": false,
-						"internalType": "uint256",
-						"name": "previousRate",
-						"type": "uint256"
-					},
-					{
-						"indexed": false,
-						"internalType": "uint256",
-						"name": "newRate",
-						"type": "uint256"
-					}
-				],
-				"name": "ReDistributionRateUpdated",
-				"type": "event"
-			},
-			{
-				"anonymous": false,
-				"inputs": [
-					{
-						"indexed": true,
-						"internalType": "address",
-						"name": "caller",
-						"type": "address"
-					},
-					{
 						"indexed": true,
 						"internalType": "address",
 						"name": "router",
@@ -280,30 +211,11 @@
 					{
 						"indexed": false,
 						"internalType": "uint256",
-						"name": "tokensIntoLiqudity",
+						"name": "tokensIntoLiquidity",
 						"type": "uint256"
 					}
 				],
 				"name": "SwapAndLiquify",
-				"type": "event"
-			},
-			{
-				"anonymous": false,
-				"inputs": [
-					{
-						"indexed": true,
-						"internalType": "address",
-						"name": "caller",
-						"type": "address"
-					},
-					{
-						"indexed": false,
-						"internalType": "bool",
-						"name": "enabled",
-						"type": "bool"
-					}
-				],
-				"name": "SwapAndLiquifyEnabledUpdated",
 				"type": "event"
 			},
 			{
@@ -330,6 +242,63 @@
 				],
 				"name": "Transfer",
 				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": true,
+						"internalType": "string",
+						"name": "functionName",
+						"type": "string"
+					},
+					{
+						"indexed": true,
+						"internalType": "uint256",
+						"name": "unlockedAt",
+						"type": "uint256"
+					}
+				],
+				"name": "UnlockedFunction",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": false,
+						"internalType": "uint16",
+						"name": "redistribution",
+						"type": "uint16"
+					},
+					{
+						"indexed": false,
+						"internalType": "uint16",
+						"name": "dev",
+						"type": "uint16"
+					},
+					{
+						"indexed": false,
+						"internalType": "uint16",
+						"name": "donation",
+						"type": "uint16"
+					}
+				],
+				"name": "UpdateTax",
+				"type": "event"
+			},
+			{
+				"inputs": [],
+				"name": "MAXIMUM_TAX",
+				"outputs": [
+					{
+						"internalType": "uint16",
+						"name": "",
+						"type": "uint16"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
 			},
 			{
 				"inputs": [],
@@ -365,7 +334,7 @@
 						"type": "address"
 					}
 				],
-				"name": "_excludedFromFeesAsReciever",
+				"name": "_excludedFromFeesAsReceiver",
 				"outputs": [
 					{
 						"internalType": "bool",
@@ -410,19 +379,6 @@
 			},
 			{
 				"inputs": [],
-				"name": "_maintainer",
-				"outputs": [
-					{
-						"internalType": "address",
-						"name": "",
-						"type": "address"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
-			},
-			{
-				"inputs": [],
 				"name": "_minAmountToLiquify",
 				"outputs": [
 					{
@@ -455,19 +411,6 @@
 						"internalType": "contract IUniswapV2Router02",
 						"name": "",
 						"type": "address"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
-			},
-			{
-				"inputs": [],
-				"name": "_swapAndLiquifyEnabled",
-				"outputs": [
-					{
-						"internalType": "bool",
-						"name": "",
-						"type": "bool"
 					}
 				],
 				"stateMutability": "view",
@@ -624,7 +567,7 @@
 						"type": "address"
 					}
 				],
-				"name": "excludeFromFeesAsReciever",
+				"name": "excludeFromFeesAsReceiver",
 				"outputs": [],
 				"stateMutability": "nonpayable",
 				"type": "function"
@@ -707,6 +650,58 @@
 			},
 			{
 				"inputs": [],
+				"name": "isLiquifyActive",
+				"outputs": [
+					{
+						"internalType": "bool",
+						"name": "",
+						"type": "bool"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "isLockEnabled",
+				"outputs": [
+					{
+						"internalType": "bool",
+						"name": "",
+						"type": "bool"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "string",
+						"name": "_fn",
+						"type": "string"
+					}
+				],
+				"name": "lockFunction",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "maintainer",
+				"outputs": [
+					{
+						"internalType": "address",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
 				"name": "maximumTransferTaxRate",
 				"outputs": [
 					{
@@ -781,6 +776,32 @@
 				"inputs": [
 					{
 						"internalType": "address",
+						"name": "wallet",
+						"type": "address"
+					}
+				],
+				"name": "setDevWallet",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "wallet",
+						"type": "address"
+					}
+				],
+				"name": "setDonationWallet",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
 						"name": "_tokenB",
 						"type": "address"
 					}
@@ -804,6 +825,39 @@
 				"type": "function"
 			},
 			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "_amount",
+						"type": "uint256"
+					}
+				],
+				"name": "setMinAmountToLiquify",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "wallet",
+						"type": "address"
+					}
+				],
+				"name": "setRewardWallet",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "setTimelockEnabled",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
 				"inputs": [],
 				"name": "swapAndLiquify",
 				"outputs": [],
@@ -818,6 +872,25 @@
 						"internalType": "string",
 						"name": "",
 						"type": "string"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "string",
+						"name": "",
+						"type": "string"
+					}
+				],
+				"name": "timelock",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
 					}
 				],
 				"stateMutability": "view",
@@ -905,38 +978,12 @@
 			{
 				"inputs": [
 					{
-						"internalType": "uint16",
-						"name": "_rate",
-						"type": "uint16"
+						"internalType": "string",
+						"name": "_fn",
+						"type": "string"
 					}
 				],
-				"name": "updateDevRate",
-				"outputs": [],
-				"stateMutability": "nonpayable",
-				"type": "function"
-			},
-			{
-				"inputs": [
-					{
-						"internalType": "uint16",
-						"name": "_rate",
-						"type": "uint16"
-					}
-				],
-				"name": "updateDonationRate",
-				"outputs": [],
-				"stateMutability": "nonpayable",
-				"type": "function"
-			},
-			{
-				"inputs": [
-					{
-						"internalType": "uint16",
-						"name": "_maxTransferAmountRate",
-						"type": "uint16"
-					}
-				],
-				"name": "updateMaxTransferAmountRate",
+				"name": "unlockFunction",
 				"outputs": [],
 				"stateMutability": "nonpayable",
 				"type": "function"
@@ -970,19 +1017,6 @@
 			{
 				"inputs": [
 					{
-						"internalType": "uint16",
-						"name": "_rate",
-						"type": "uint16"
-					}
-				],
-				"name": "updateRedistributionRate",
-				"outputs": [],
-				"stateMutability": "nonpayable",
-				"type": "function"
-			},
-			{
-				"inputs": [
-					{
 						"internalType": "address",
 						"name": "router",
 						"type": "address"
@@ -996,12 +1030,22 @@
 			{
 				"inputs": [
 					{
-						"internalType": "bool",
-						"name": "_enabled",
-						"type": "bool"
+						"internalType": "uint16",
+						"name": "_redistribution",
+						"type": "uint16"
+					},
+					{
+						"internalType": "uint16",
+						"name": "_dev",
+						"type": "uint16"
+					},
+					{
+						"internalType": "uint16",
+						"name": "_donation",
+						"type": "uint16"
 					}
 				],
-				"name": "updateSwapAndLiquifyEnabled",
+				"name": "updateTax",
 				"outputs": [],
 				"stateMutability": "nonpayable",
 				"type": "function"
@@ -1063,9 +1107,9 @@
 	},
 	"settings": {
 		"compilationTarget": {
-			"contracts/libraries/Liquify.sol": "Liquify"
+			"contracts/chains/evmos/libraries/Liquify.sol": "Liquify"
 		},
-		"evmVersion": "istanbul",
+		"evmVersion": "london",
 		"libraries": {},
 		"metadata": {
 			"bytecodeHash": "ipfs"
@@ -1169,20 +1213,28 @@
 				"dweb:/ipfs/Qme51hQNR2wpax7ooUadhtqLtXm8ffeVVYyubLkTT4wMCG"
 			]
 		},
-		"contracts/libraries/Liquify.sol": {
-			"keccak256": "0xa996dc6579aa016fba15aa98dce5094d87f59176401e38a415a38e53c33cf39f",
+		"contracts/chains/evmos/libraries/Liquify.sol": {
+			"keccak256": "0x6ad7e1d5040053898e11041543bad82821cb75134020cfe5bb735326e6d1d2b0",
 			"license": "GPL-3.0",
 			"urls": [
-				"bzz-raw://dd2238017249da086955a1aa88a1e5720b79aa7fc87a3f8c88fc59be15660b59",
-				"dweb:/ipfs/Qmf5dbh416LC3kjDJ6o9s4Kxe9unSFkonG4coy6GiEERno"
+				"bzz-raw://ea503e6e74b02a29defa7a55a0c7ce79f0fdba8c426e0d6ca14c7e9ab57aedf1",
+				"dweb:/ipfs/QmQgcEMd5eUFjBhVN42TEtAiqetD5HVoE87USddeGp4KAt"
+			]
+		},
+		"contracts/libraries/TimeLock.sol": {
+			"keccak256": "0x0e85c574298d0aa5124db59c699e584dfdf0d02561ed999fccb2a5121e042c1c",
+			"license": "GPL-3.0",
+			"urls": [
+				"bzz-raw://f1b3f4a737f189f962a6129947275e704a91952b3fced2ab69e93ffad27b7ffd",
+				"dweb:/ipfs/QmQfUZTBFBuUrYnR4sL4EJwxQu1Ra1vaJDASvNrLoF86jq"
 			]
 		},
 		"contracts/libraries/TransferHelper.sol": {
-			"keccak256": "0x10f3f5a45eb8178e7a2865dfb8cea7ecef614cfdc8e661384c0e154b60a32e98",
+			"keccak256": "0xca695d0e538e9ff25e60094195cb09927268cfcdebfc7454f0047113bd9f7fa0",
 			"license": "GPL-3.0-or-later",
 			"urls": [
-				"bzz-raw://4fa39b364162318f2978516800c04acafa1f52229cfe454f2e22a1f497eba7c9",
-				"dweb:/ipfs/QmRSwRXAYCeNS6oymnA2qfWHM9AkLVzJ5YTLdyKgfDNTwB"
+				"bzz-raw://fe35341ea6086bfea59aff3dbf7211999b23ffb74822dcf43d37121c9bce0bfc",
+				"dweb:/ipfs/QmSvn6N4774bkSbWVYNY73QRU4a5fjybe4VhLVEnM1B6Sm"
 			]
 		}
 	},

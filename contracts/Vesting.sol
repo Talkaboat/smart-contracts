@@ -18,10 +18,12 @@ contract Vesting is Ownable {
     ===================================================================================================================== */
     IERC20 public rewardToken; //Aboat Token
     uint256 public claimOpen = 0;
-    uint256 constant public period = 2; //How many days are between each claim 
-    uint256 constant public initialClaimPercentage = 100; //How much can investors claim directly after sale ended | 100 = 10%
-    uint256 constant public percentagePerPeriod = 50; //How much can investors claim per period after the initial claim | 100 = 10%
-    uint256 constant public cliffPeriod = 10; //How many days after initial claim before percentagePerPeriod takes place
+    uint256 constant public period = 30; //How many days are between each claim 
+    uint256 constant public initialClaimPercentage = 50; //How much can investors claim directly after sale ended | 100 = 10%
+    uint256 constant public percentagePerPeriod = 25; //How much can investors claim per period after the initial claim | 100 = 10%
+    uint256 constant public cliffPeriod = 0; //How many days after initial claim before percentagePerPeriod takes place
+
+    uint256 constant public timeMultiplier = 1 days;
     
     bool public requireWhitelist = true;    //flag to determine whether buyers have to be whitelisted or not
     
@@ -86,7 +88,7 @@ contract Vesting is Ownable {
         uint256 deltaPeriod = cliffEnded;
         uint256 percentage = claimOpen > 0 && block.timestamp > deltaPeriod
         ? block.timestamp.sub(deltaPeriod)
-            .div(period * 1 minutes)
+            .div(period * timeMultiplier)
             .mul(percentagePerPeriod)
             .add(initialClaimPercentage) 
         : initialClaimPercentage;

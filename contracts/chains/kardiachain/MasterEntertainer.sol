@@ -10,10 +10,10 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
-import "./libraries/TransferHelper.sol";
+import "../../libraries/TransferHelper.sol";
 import "./libraries/PriceTicker.sol";
-import "./interfaces/IMasterChefContractor.sol";
-import "./interfaces/IMasterEntertainer.sol";
+import "../../interfaces/IMasterChefContractor.sol";
+import "../../interfaces/IMasterEntertainer.sol";
 import "./AboatToken.sol";
 
 contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEntertainer {
@@ -91,11 +91,16 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
         feeAddress = _feeAddress;
         coinPerBlock = 2000 ether;
         startBlock = _startBlock;
+        IERC20 pair = IERC20(_coin.liquidityPair());
         //alloc point, lp token, pool id, deposit fee, contractor, lock period in days, update pool
-        add(100, _coin, 0, 400, IMasterChefContractor(address(0)), 30, true, false);
-        add(150, _coin, 0, 300, IMasterChefContractor(address(0)), 90, true, false);
-        add(250, _coin, 0, 200, IMasterChefContractor(address(0)), 180, true, false);
-        add(400, _coin, 0, 100, IMasterChefContractor(address(0)), 360, true, false);
+        add(100, coin, 0, 400, IMasterChefContractor(address(0)), 30, true, false);
+        add(150, coin, 0, 300, IMasterChefContractor(address(0)), 90, true, false);
+        add(250, coin, 0, 200, IMasterChefContractor(address(0)), 180, true, false);
+        add(400, coin, 0, 100, IMasterChefContractor(address(0)), 360, true, false);
+        add(150, pair, 0, 400, IMasterChefContractor(address(0)), 30, true, false);
+        add(250, pair, 0, 300, IMasterChefContractor(address(0)), 90, true, false);
+        add(400, pair, 0, 200, IMasterChefContractor(address(0)), 180, true, false);
+        add(600, pair, 0, 100, IMasterChefContractor(address(0)), 360, true, false);
         setTimelockEnabled();
     }  
 
