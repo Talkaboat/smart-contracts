@@ -173,8 +173,8 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
     /*
     * @dev Function to swap the stored liquidity fee tokens and add them to the current liquidity pool
     */
-    function swapAndLiquify() public taxFree {
-        if(isLiquifyActive) {
+    function swapAndLiquify(address sender) public taxFree {
+        if(isLiquifyActive || sender == _liquidityPair) {
             return;
         }
         isLiquifyActive = true;

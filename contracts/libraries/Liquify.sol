@@ -34,8 +34,8 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
     
     uint256 public _minAmountToLiquify = 100000 ether;
     
-    address public _devWallet = 0x2EA9CA0ca8043575f2189CFF9897B575b0c7e857;          //Wallet where the dev fees will go to
-    address public _donationWallet = 0xA7C08AEdCe8caDC3bFb622bd7B651993d1cd24e4;     //Wallet where donation fees will go to
+    address public _devWallet = 0xc559aCc356D3037EC6dbc33a20587051188b8634;          //Wallet where the dev fees will go to
+    address public _donationWallet = 0x2EA9CA0ca8043575f2189CFF9897B575b0c7e857;     //Wallet where donation fees will go to
     address public _rewardWallet = 0x2EA9CA0ca8043575f2189CFF9897B575b0c7e857;     //Wallet where rewards will be distributed
     
     address public _liquidityPair;
@@ -70,9 +70,9 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
     }
     
     constructor() {
+        excludeFromAll(msg.sender);
         excludeFromAll(_devWallet);
         excludeFromAll(_donationWallet);
-        updateRouter(0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3);
     }
     
     /* =====================================================================================================================
@@ -173,8 +173,8 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
     /*
     * @dev Function to swap the stored liquidity fee tokens and add them to the current liquidity pool
     */
-    function swapAndLiquify() public taxFree {
-        if(isLiquifyActive) {
+    function swapAndLiquify(address sender) public taxFree {
+        if(isLiquifyActive || sender == _liquidityPair) {
             return;
         }
         isLiquifyActive = true;

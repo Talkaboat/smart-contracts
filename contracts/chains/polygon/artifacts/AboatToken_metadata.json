@@ -1726,7 +1726,7 @@
 			"bytecodeHash": "ipfs"
 		},
 		"optimizer": {
-			"enabled": false,
+			"enabled": true,
 			"runs": 200
 		},
 		"remappings": []
@@ -1825,11 +1825,11 @@
 			]
 		},
 		"contracts/chains/polygon/AboatToken.sol": {
-			"keccak256": "0x47266b6c55ef5b2238b4249dacfe81f81eb49becf06bc1e115d173067da68c89",
+			"keccak256": "0x438adff1bf0ef5dae730e3a197393e2690a53d6429bd122cf532e920f334a73f",
 			"license": "GPL-3.0",
 			"urls": [
-				"bzz-raw://6c2cb84116cb2189eef007cda672a009b226f131a681910ec89d4c1fc390752f",
-				"dweb:/ipfs/QmSEL91ixAt4n6PoswBZFkzbNwf9EaxTv82QYVXi8yJWup"
+				"bzz-raw://6b5013e7675403bcb5b1ba75488dc8d0f028ff0fba9c07cb2f9896bf21b8d85c",
+				"dweb:/ipfs/QmdUHGvU6fBwAPxqzmuJGvnVjDDidXbVHJaCyVWjxx7RXB"
 			]
 		},
 		"contracts/chains/polygon/libraries/Liquify.sol": {

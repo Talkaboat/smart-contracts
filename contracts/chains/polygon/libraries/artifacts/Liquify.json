@@ -93,7 +93,7 @@
 			"setMinAmountToLiquify(uint256)": "8efd5e3b",
 			"setRewardWallet(address)": "5958621e",
 			"setTimelockEnabled()": "f4762fd6",
-			"swapAndLiquify()": "b29ad50a",
+			"swapAndLiquify(address)": "de3fc37d",
 			"symbol()": "95d89b41",
 			"timelock(string)": "f98080c0",
 			"totalSupply()": "18160ddd",
@@ -961,7 +961,13 @@
 			"type": "function"
 		},
 		{
-			"inputs": [],
+			"inputs": [
+				{
+					"internalType": "address",
+					"name": "sender",
+					"type": "address"
+				}
+			],
 			"name": "swapAndLiquify",
 			"outputs": [],
 			"stateMutability": "nonpayable",
