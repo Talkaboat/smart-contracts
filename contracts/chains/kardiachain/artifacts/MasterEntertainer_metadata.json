@@ -1323,7 +1323,7 @@
 			"bytecodeHash": "ipfs"
 		},
 		"optimizer": {
-			"enabled": true,
+			"enabled": false,
 			"runs": 200
 		},
 		"remappings": []
@@ -1430,19 +1430,19 @@
 			]
 		},
 		"contracts/chains/kardiachain/AboatToken.sol": {
-			"keccak256": "0x44d2eb725586214022ec5bac1e6dffebf06bd47488596c5edfc642928231803e",
+			"keccak256": "0xf4a41d08b2eeb76081f3de1e7f65d9dde03b8141f577a18f4015c2e922fc0007",
 			"license": "GPL-3.0",
 			"urls": [
-				"bzz-raw://5f2b6cf8c228d420ad5f982523f3e044b2fd0085b66959336f5ca41ec9b9b8f3",
-				"dweb:/ipfs/QmRMwX49Jiioxrubq7ZKUt7Hi8Mg5GwSaUF84AD2AJSAhD"
+				"bzz-raw://2c156542c70caf9f2681db03ebd3d5a00243daee9baff0bd31e390927323c89e",
+				"dweb:/ipfs/QmNnneTXrKbWjsAu3xRfa6tRokYNiDj7Qp3LJ4T6y8j1r4"
 			]
 		},
 		"contracts/chains/kardiachain/MasterEntertainer.sol": {
-			"keccak256": "0x0e6e6a549394c3cec46a12919f9a7ea8075d7a8bbffd74026d645c33a2badab7",
+			"keccak256": "0x86b9ca64741cbcee6c41075d04cd75ca418b2210731ac6b05163041dc22e6a0c",
 			"license": "GPL-3.0",
 			"urls": [
-				"bzz-raw://8f7887b6293c1ac4a4f0b455628c500c740bf3016b0683b97d35d83ffa70d643",
-				"dweb:/ipfs/QmaJV2NwVgWuyTHjiLVsL1BqAQw88A9pHJ6bUMSetqQZkw"
+				"bzz-raw://feab61df0726007b8b68faa105c25f139d8f0ef24dd46794b7cbb3f425d893fe",
+				"dweb:/ipfs/QmPQLs7uDF3h5MG3a5Y3dJsBcqctGsMem55mRWN57Jxrio"
 			]
 		},
 		"contracts/chains/kardiachain/interfaces/IKaiDexRouter.sol": {

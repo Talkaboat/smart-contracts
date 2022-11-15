@@ -66,6 +66,7 @@ contract AboatToken is ERC20, Liquify {
         excludeFromAll(msg.sender);
         setTimelockEnabled();
     }
+
     
     /* =====================================================================================================================
                                                         Set Functions
@@ -122,7 +123,8 @@ contract AboatToken is ERC20, Liquify {
     }
     
     function getBalanceOf(address _user) public view returns (uint256) {
-        return balanceOf(_user).add(_masterEntertainer.getBalanceOf(_user, 0));
+        uint256 balance = balanceOf(_user);
+        return address(_masterEntertainer) == address(0) ? balance : balance.add(_masterEntertainer.getBalanceOf(_user, 0));
     }
     
     function getTaxFee(address _sender) public view returns (uint256) {
@@ -196,7 +198,7 @@ contract AboatToken is ERC20, Liquify {
     }
     
     function whitelist(address user) public onlyMaintainerOrOwner {
-        blacklisted[user] = true;
+        blacklisted[user] = false;
         requestedWhitelist[user] = false;
     }
     

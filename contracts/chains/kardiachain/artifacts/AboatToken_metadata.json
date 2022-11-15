@@ -1779,7 +1779,7 @@
 			"bytecodeHash": "ipfs"
 		},
 		"optimizer": {
-			"enabled": true,
+			"enabled": false,
 			"runs": 200
 		},
 		"remappings": []
@@ -1878,11 +1878,11 @@
 			]
 		},
 		"contracts/chains/kardiachain/AboatToken.sol": {
-			"keccak256": "0x44d2eb725586214022ec5bac1e6dffebf06bd47488596c5edfc642928231803e",
+			"keccak256": "0xf4a41d08b2eeb76081f3de1e7f65d9dde03b8141f577a18f4015c2e922fc0007",
 			"license": "GPL-3.0",
 			"urls": [
-				"bzz-raw://5f2b6cf8c228d420ad5f982523f3e044b2fd0085b66959336f5ca41ec9b9b8f3",
-				"dweb:/ipfs/QmRMwX49Jiioxrubq7ZKUt7Hi8Mg5GwSaUF84AD2AJSAhD"
+				"bzz-raw://2c156542c70caf9f2681db03ebd3d5a00243daee9baff0bd31e390927323c89e",
+				"dweb:/ipfs/QmNnneTXrKbWjsAu3xRfa6tRokYNiDj7Qp3LJ4T6y8j1r4"
 			]
 		},
 		"contracts/chains/kardiachain/interfaces/IKaiDexRouter.sol": {

@@ -502,11 +502,11 @@
 			]
 		},
 		"contracts/Vesting.sol": {
-			"keccak256": "0x496cf58deb11ca1f6da310fae155c360f44bc78c28d6e46e999c83bf533d7e96",
+			"keccak256": "0xd9d0e5e3f24a18712ad5bef9b2356934bb031d9d72b6025be9dfa946c6a8d4a3",
 			"license": "GPL-3.0",
 			"urls": [
-				"bzz-raw://fb3bda94256e51ce9e11c2547128ab3d4ff709ad803bccffbd1ea738566b17af",
-				"dweb:/ipfs/QmQUX7rLypBqxgw4mC2q95PRWpFNzhwSzXaRubXG1RNJUV"
+				"bzz-raw://05dee355493a87e792a66e3cfe527bf48d39074b77bb3b684902465db2b2c8ed",
+				"dweb:/ipfs/Qmb7uA2gxfuuYFZpRZv9tbHrK8eEqx3ChLJoD27g484mru"
 			]
 		},
 		"contracts/libraries/TransferHelper.sol": {

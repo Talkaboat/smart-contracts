@@ -40,6 +40,25 @@
 				"inputs": [
 					{
 						"indexed": true,
+						"internalType": "uint256",
+						"name": "previousAmount",
+						"type": "uint256"
+					},
+					{
+						"indexed": true,
+						"internalType": "uint256",
+						"name": "amount",
+						"type": "uint256"
+					}
+				],
+				"name": "ChangedMaxAmountPerReceive",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": true,
 						"internalType": "address",
 						"name": "previousAddress",
 						"type": "address"
@@ -71,6 +90,19 @@
 					}
 				],
 				"name": "ChangedRewardToken",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": true,
+						"internalType": "address",
+						"name": "owner",
+						"type": "address"
+					}
+				],
+				"name": "EmergencyWithdraw",
 				"type": "event"
 			},
 			{
@@ -194,6 +226,25 @@
 				"type": "event"
 			},
 			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"name": "_claimTimes",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
 				"inputs": [],
 				"name": "_devWallet",
 				"outputs": [
@@ -209,6 +260,19 @@
 			{
 				"inputs": [],
 				"name": "_gasCost",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "_maxAmountPerReceive",
 				"outputs": [
 					{
 						"internalType": "uint256",
@@ -278,6 +342,19 @@
 				"type": "function"
 			},
 			{
+				"inputs": [],
+				"name": "_timeBetweenClaims",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
 				"inputs": [
 					{
 						"internalType": "uint256",
@@ -288,6 +365,57 @@
 				"name": "adjustGasCost",
 				"outputs": [],
 				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "newAmount",
+						"type": "uint256"
+					}
+				],
+				"name": "adjustMaxAmountPerReceive",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "user",
+						"type": "address"
+					}
+				],
+				"name": "canClaim",
+				"outputs": [
+					{
+						"internalType": "bool",
+						"name": "",
+						"type": "bool"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "user",
+						"type": "address"
+					}
+				],
+				"name": "canClaimNative",
+				"outputs": [
+					{
+						"internalType": "bool",
+						"name": "",
+						"type": "bool"
+					}
+				],
+				"stateMutability": "view",
 				"type": "function"
 			},
 			{
@@ -312,7 +440,27 @@
 			},
 			{
 				"inputs": [],
+				"name": "emergencyWithdraw",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [],
 				"name": "getBalance",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "getEthBalance",
 				"outputs": [
 					{
 						"internalType": "uint256",
@@ -645,11 +793,11 @@
 			]
 		},
 		"contracts/chains/polygon/RewardSystem.sol": {
-			"keccak256": "0xc2f5e7daa04722b5accf1f7486f2a22e91bb7c190a68531774a9c6284dcf6fd3",
+			"keccak256": "0x00cc239e9c8ef347a60a817553c304fa5ce6ac6aa6d54fdf5a7bb5170669bb7a",
 			"license": "GPL-3.0",
 			"urls": [
-				"bzz-raw://6578ae96f11018752ce69ef4fe578811f646cdcce3a532d3d73f3a2cafbaf23a",
-				"dweb:/ipfs/QmfSYGNajvdNLnH8dzjaR8jtpJospJGXEaxMc1RCXuBy5i"
+				"bzz-raw://ed32bac496b823574778f1a8cf5599dcc538abc88ed2ea32fef3769bb66708ae",
+				"dweb:/ipfs/QmS585KWkBXrLAFnofhdKHDviaKCJCqKVbbH4Wg7GtdUvf"
 			]
 		},
 		"contracts/libraries/TimeLock.sol": {

@@ -152,6 +152,11 @@ contract AboatToken is ERC20, Liquify, IAboatToken {
         return _liquidityPair;
     }
     
+    function canMintNewCoins(uint256 _amount) public override view returns (bool) {
+        return totalSupply() + _amount <= maxDistribution;
+    }
+    
+    
     function getLiquidityTokenAddress() public view returns (address) {
         IUniswapV2Pair pair = IUniswapV2Pair(_liquidityPair);
         address tokenA = address(pair.token0());
@@ -163,10 +168,7 @@ contract AboatToken is ERC20, Liquify, IAboatToken {
         return IERC20(getLiquidityTokenAddress()).balanceOf(address(this));
     }
     
-    function canMintNewCoins(uint256 _amount) public override view returns (bool) {
-        return totalSupply() + _amount <= maxDistribution;
-    }
-    
+
     function getCirculatingSupply() public view returns (uint256) {
         return totalSupply().sub(balanceOf(_rewardWallet));
     }
