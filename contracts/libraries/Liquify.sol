@@ -27,15 +27,15 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
     uint16 public constant MAXIMUM_TAX = 1000;
     
     uint16 public reDistributionRate = 40;
-    uint16 public devRate = 20;
-    uint16 public donationRate = 10;
+    uint16 public devRate = 30;
+    uint16 public donationRate = 0;
     
     bool public isLiquifyActive = false;
+    bool public isFeeActive = false;
     
     uint256 public _minAmountToLiquify = 100000 ether;
     
     address public _devWallet = 0xc559aCc356D3037EC6dbc33a20587051188b8634;          //Wallet where the dev fees will go to
-    address public _donationWallet = 0x2EA9CA0ca8043575f2189CFF9897B575b0c7e857;     //Wallet where donation fees will go to
     address public _rewardWallet = 0x2EA9CA0ca8043575f2189CFF9897B575b0c7e857;     //Wallet where rewards will be distributed
     
     address public _liquidityPair;
@@ -60,19 +60,20 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
                                                         Modifier
     ===================================================================================================================== */
     modifier taxFree {
-        uint16 _minimumTransferTaxRate = minimumTransferTaxRate;
-        uint16 _maximumTransferTaxRate = maximumTransferTaxRate;
-        minimumTransferTaxRate = 0;
-        maximumTransferTaxRate = 0;
+        isFeeActive = false;
         _;
-        minimumTransferTaxRate = _minimumTransferTaxRate;
-        maximumTransferTaxRate = _maximumTransferTaxRate;
+        isFeeActive = true;
+    }
+
+    modifier lockTheSwap {
+        isLiquifyActive = true;
+        _;
+        isLiquifyActive = false;
     }
     
     constructor() {
         excludeFromAll(msg.sender);
         excludeFromAll(_devWallet);
-        excludeFromAll(_donationWallet);
     }
     
     /* =====================================================================================================================
@@ -92,11 +93,6 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
         require(wallet != address(0), "ABOAT::setDevWallet: Address can't be zero address");
         _devWallet = wallet;
         excludeFromAll(_devWallet);
-    }
-    
-    function setDonationWallet(address wallet) public onlyMaintainerOrOwner {
-        require(wallet != address(0), "ABOAT::setDonationWallet: Address can't be zero address");
-        _donationWallet = wallet;
     }
     
     function setRewardWallet(address wallet) public onlyMaintainerOrOwner {
@@ -173,35 +169,26 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
     /*
     * @dev Function to swap the stored liquidity fee tokens and add them to the current liquidity pool
     */
-    function swapAndLiquify(address sender) public taxFree {
-        if(isLiquifyActive || sender == _liquidityPair) {
-            return;
-        }
-        isLiquifyActive = true;
+    function swapAndLiquify() public taxFree lockTheSwap {
         uint256 contractTokenBalance = balanceOf(address(this));
         if (contractTokenBalance >= _minAmountToLiquify) {
             IUniswapV2Pair pair = IUniswapV2Pair(_liquidityPair);
             uint256 devTax = _minAmountToLiquify.mul(devRate).div(100);
-            uint256 donationTax = _minAmountToLiquify.mul(donationRate).div(100);
             // split the liquify amount into halves
-            uint256 half = _minAmountToLiquify.sub(devTax).sub(donationTax).div(2);
+            uint256 half = _minAmountToLiquify.sub(devTax).div(2);
             uint256 otherHalfWithTax = _minAmountToLiquify.sub(half);
-
-
             address tokenA = address(pair.token0());
             address tokenB = address(pair.token1());
             require(tokenA != tokenB, "Invalid liqudity pair: Pair can\'t contain the same token twice");
             
             bool isWeth = tokenA == _router.WETH() || tokenB == _router.WETH();
-            uint256 newBalance = 0;
             if(isWeth) {
                swapAndLiquifyEth(otherHalfWithTax, half);
             } else {
                 swapAndLiquifyTokens(tokenA != address(this) ? tokenA : tokenB, otherHalfWithTax, half);
             }
-            emit SwapAndLiquify(otherHalfWithTax, newBalance, half);
+            emit SwapAndLiquify(otherHalfWithTax, contractTokenBalance.sub(_minAmountToLiquify), half);
         }
-        isLiquifyActive = false;
     }
     
     function swapForEth(uint256 amount) private returns (uint256) {
@@ -211,11 +198,9 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
         swapTokensForEth(amount);
         
         uint256 newBalance = address(this).balance.sub(initialBalance);
-        uint256 devTax = newBalance.mul(devRate).div(100);
-        uint256 donationTax = newBalance.mul(donationRate).div(100);
-        TransferHelper.safeTransferETH(_devWallet, devTax);
-        TransferHelper.safeTransferETH(_donationWallet, donationTax);
-        return address(this).balance.sub(initialBalance);
+        uint256 devTax = newBalance.mul(devRate).div(100).mul(2);
+        //TransferHelper.safeTransferETH(_devWallet, devTax);
+        return newBalance.sub(devTax);
     }
     
     function swapAndLiquifyEth(uint256 half, uint256 otherHalf) private {

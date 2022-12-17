@@ -55,7 +55,6 @@
 		"methodIdentifiers": {
 			"MAXIMUM_TAX()": "d9324079",
 			"_devWallet()": "11a63e17",
-			"_donationWallet()": "a37f4ea9",
 			"_excludedFromFeesAsReceiver(address)": "1ac818a1",
 			"_excludedFromFeesAsSender(address)": "ae7e1d7a",
 			"_liquidityPair()": "645830b4",
@@ -76,6 +75,7 @@
 			"includeForFeesAsReciever(address)": "53a54511",
 			"includeTransferFeeAsSender(address)": "4ad1eb81",
 			"increaseAllowance(address,uint256)": "39509351",
+			"isFeeActive()": "e43504da",
 			"isLiquifyActive()": "005d1afc",
 			"isLockEnabled()": "a347511a",
 			"lockFunction(string)": "9f531156",
@@ -87,13 +87,12 @@
 			"reDistributionRate()": "03fcdbdf",
 			"renounceOwnership()": "715018a6",
 			"setDevWallet(address)": "1f53ac02",
-			"setDonationWallet(address)": "5a96cdd7",
 			"setLiquidityPair(address)": "9d93598e",
 			"setMaintainer(address)": "13ea5d29",
 			"setMinAmountToLiquify(uint256)": "8efd5e3b",
 			"setRewardWallet(address)": "5958621e",
 			"setTimelockEnabled()": "f4762fd6",
-			"swapAndLiquify(address)": "de3fc37d",
+			"swapAndLiquify()": "b29ad50a",
 			"symbol()": "95d89b41",
 			"timelock(string)": "f98080c0",
 			"totalSupply()": "18160ddd",
@@ -406,19 +405,6 @@
 		{
 			"inputs": [],
 			"name": "_devWallet",
-			"outputs": [
-				{
-					"internalType": "address",
-					"name": "",
-					"type": "address"
-				}
-			],
-			"stateMutability": "view",
-			"type": "function"
-		},
-		{
-			"inputs": [],
-			"name": "_donationWallet",
 			"outputs": [
 				{
 					"internalType": "address",
@@ -753,6 +739,19 @@
 		},
 		{
 			"inputs": [],
+			"name": "isFeeActive",
+			"outputs": [
+				{
+					"internalType": "bool",
+					"name": "",
+					"type": "bool"
+				}
+			],
+			"stateMutability": "view",
+			"type": "function"
+		},
+		{
+			"inputs": [],
 			"name": "isLiquifyActive",
 			"outputs": [
 				{
@@ -892,19 +891,6 @@
 			"inputs": [
 				{
 					"internalType": "address",
-					"name": "wallet",
-					"type": "address"
-				}
-			],
-			"name": "setDonationWallet",
-			"outputs": [],
-			"stateMutability": "nonpayable",
-			"type": "function"
-		},
-		{
-			"inputs": [
-				{
-					"internalType": "address",
 					"name": "_tokenB",
 					"type": "address"
 				}
@@ -961,13 +947,7 @@
 			"type": "function"
 		},
 		{
-			"inputs": [
-				{
-					"internalType": "address",
-					"name": "sender",
-					"type": "address"
-				}
-			],
+			"inputs": [],
 			"name": "swapAndLiquify",
 			"outputs": [],
 			"stateMutability": "nonpayable",

@@ -43,7 +43,7 @@ contract AboatToken is ERC20, Liquify, IAboatToken {
     constructor() ERC20("Aboat Token", "ABOAT") {
         mint(msg.sender, maxDistribution);
         excludeFromAll(msg.sender);
-        updateRouter(0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3);
+        updateRouter(0x10ED43C718714eb63d5aA57B78B54704E256024E);
     }
 
     receive() external payable {}
@@ -68,6 +68,7 @@ contract AboatToken is ERC20, Liquify, IAboatToken {
 
     function setMasterEntertainer(IMasterEntertainer masterEntertainer) public onlyMaintainerOrOwner {
         _masterEntertainer = masterEntertainer;
+        excludeFromAll(address(masterEntertainer));
         emit ChangedMasterEntertainer(address(_masterEntertainer));
     }
 
@@ -121,7 +122,7 @@ contract AboatToken is ERC20, Liquify, IAboatToken {
         return walletBalance;
     }
 
-        function getTaxFee(address _sender) public view returns (uint256) {
+    function getTaxFee(address _sender) public view returns (uint256) {
         uint balance = getBalanceOf(_sender);
         if(balance > totalSupply()) {
             return maximumTransferTaxRate;
@@ -173,10 +174,8 @@ contract AboatToken is ERC20, Liquify, IAboatToken {
         require((amount + getBalanceOf(recipient)) * 10000 / totalSupply() <= maxAccBalance || recipient == owner() || recipient == maintainer() || recipient == address(this) || _excludedFromFeesAsReceiver[recipient] || _excludedFromFeesAsSender[recipient], "ABOAT::_transfer:Balance of recipient can't exceed maxAccBalance");
         //Liquidity Provision safety
         require(isContractActive || sender == owner() || sender == maintainer() || _excludedFromFeesAsReceiver[recipient] || _excludedFromFeesAsSender[sender], "ABOAT::_transfer:Contract is not yet open for community");
-        
-        swapAndLiquify(sender);
 
-        if (maximumTransferTaxRate == 0 || ((sender == maintainer() || sender == owner() || (_excludedFromFeesAsSender[sender] && _excludedFromFeesAsReceiver[recipient])) && (recipient == address(0) || _excludedFromFeesAsReceiver[recipient] || _excludedFromFeesAsSender[sender]))) {
+        if (!isFeeActive || sender == maintainer() || sender == owner() || _excludedFromFeesAsReceiver[recipient] || _excludedFromFeesAsSender[sender]) {
             super._transfer(sender, recipient, amount);
         } else {
             uint256 taxAmount = amount.mul(getTaxFee(sender)).div(10000);

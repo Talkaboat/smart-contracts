@@ -12,18 +12,18 @@ import "../../libraries/TimeLock.sol";
 import "./interfaces/IKaiDexRouter.sol";
 
 contract RewardSystem is Ownable, TimeLock {
-    using Address for address;
+   using Address for address;
     using SafeMath for uint256;
     
     /* =====================================================================================================================
                                                         Variables
     ===================================================================================================================== */
     mapping(address => bool) public _rewards;
-    mapping(address => uint256) public _claimTimes;
+    mapping(address => mapping(address => uint256)) public _claimTimes; //user => token => claim time
+    mapping(address => bool) public _paidFee;
     uint256 public nativeSwapFee = 10; //10% fee
-    
-    address public _oracleWallet = 0x76049b7cAaB30b8bBBdcfF3A1059d9147dBF7B19;
-    address public _devWallet = 0xc559aCc356D3037EC6dbc33a20587051188b8634;
+    uint256 public thirdPartyFee = 2; //2% fee
+    uint256 public _gasCost = 6500000000000000 wei;
     
     IERC20 public _rewardToken;
     uint256 public _maxAmountPerReceive = 10000000 ether;
@@ -35,18 +35,18 @@ contract RewardSystem is Ownable, TimeLock {
     /* =====================================================================================================================
                                                         Events
     ===================================================================================================================== */
-    event SentRewards(address indexed owner, uint256 indexed amount);
+    event SentRewards(address indexed owner, uint256 indexed amount, address indexed token);
     event SentRewardsETH(address indexed owner, uint256 indexed amount, uint256 indexed fees);
     event EnabledRewards(address indexed owner);
     event ChangedFee(uint256 indexed previousFee, uint256 indexed fee);
+    event ChangedThirdPartyFee(uint256 indexed previousFee, uint256 indexed fee);
+    event ChangedGasCost(uint256 indexed previousGas, uint256 indexed gas);
     event ChangedRewardToken(address indexed previousToken, address indexed newToken);
-    event ChangedOracleWallet(address indexed previousAddress, address indexed newAddress);
     event ChangedMaxAmountPerReceive(uint256 indexed previousAmount, uint256 indexed amount);
     event EmergencyWithdraw(address indexed owner);
     
     constructor(IERC20 rewardToken) {
         _rewardToken = rewardToken;
-        changeOracleWallet(_oracleWallet);
     }
     
     receive() external payable {}
@@ -54,8 +54,11 @@ contract RewardSystem is Ownable, TimeLock {
     /* =====================================================================================================================
                                                         Get Functions
     ===================================================================================================================== */
-    function getBalance() public view returns (uint256) {
-        return _rewardToken.balanceOf(address(this));
+    function getBalance(address token) public view returns (uint256) {
+        if(token == address(0)) {
+            return address(this).balance;
+        }
+        return IERC20(token).balanceOf(address(this));
     }
 
     function getEthBalance() public view returns (uint256) {
@@ -64,9 +67,14 @@ contract RewardSystem is Ownable, TimeLock {
 
 
 
-    function canClaim(address user) public view returns (bool) {
-        return _claimTimes[user] + _timeBetweenClaims <= block.timestamp;
+    function canClaim(address user, address token) public view returns (bool) {
+        bool isPreconditionOk = true;
+        if(token != address(_rewardToken)) {
+            isPreconditionOk = _paidFee[user];
+        }
+        return isPreconditionOk && _claimTimes[user][token] + _timeBetweenClaims <= block.timestamp;
     }
+    
     
     /* =====================================================================================================================
                                                         Set Functions
@@ -83,13 +91,6 @@ contract RewardSystem is Ownable, TimeLock {
         _rewardToken = rewardToken;
     }
     
-    function changeOracleWallet(address oracleWallet) public onlyOwner locked("changeOracleWallet") {
-        transferOwnership(oracleWallet);
-        address previous = _oracleWallet;
-        _oracleWallet = oracleWallet;
-        emit ChangedOracleWallet(previous, _oracleWallet);
-    }
-    
     function setRouter(IKaiDexRouter router) public onlyOwner {
         _router = router;
     }
@@ -99,8 +100,13 @@ contract RewardSystem is Ownable, TimeLock {
         nativeSwapFee = newFee;
     }
 
-    function emergencyWithdraw() public onlyOwner {
-        TransferHelper.safeTransfer(address(_rewardToken), owner(), getBalance());
+    function changeThirdPartyFee(uint256 newFee) public onlyOwner locked("changeFee") {
+        emit ChangedThirdPartyFee(thirdPartyFee, newFee);
+        thirdPartyFee = newFee;
+    }
+
+    function emergencyWithdraw(address token) public onlyOwner {
+        TransferHelper.safeTransfer(token, owner(), getBalance(token));
         uint256 ethBalance = address(this).balance;
         if(ethBalance > 0) {
             TransferHelper.safeTransferETH(address(owner()), ethBalance);
@@ -111,31 +117,43 @@ contract RewardSystem is Ownable, TimeLock {
     /* =====================================================================================================================
                                                     Utility Functions
     ===================================================================================================================== */ 
-    function sendRewards(uint256 amount, address user, uint256 fee) public onlyOwner {
+function sendRewards(uint256 amount, address user, uint256 fee, address token) public onlyOwner {
         require(address(_router) != address(0), "ABOAT::sendReward: There is no router defined to swap tokens for eth");
-        require(amount <= getBalance(), "ABOAT::sendReward: Can't send more rewards than in reward system!");
+        require(amount <= getBalance(token), "ABOAT::sendReward: Can't send more rewards than in reward system!");
         require(amount <= _maxAmountPerReceive, "ABOAT::sendReward: Can't send more rewards than limit!");
-        require(canClaim(user), "ABOAT::sendReward: Can't claim more than once per day");
-        require(amount > fee, "ABOAT::sendReward");
-        _claimTimes[user] = block.timestamp;
-        amount = amount.sub(fee);
-        uint256 userEth = address(this).balance;
-        swapTokensForEth(fee);
-        TransferHelper.safeTransferETH(address(owner()), address(this).balance.sub(userEth));
-        TransferHelper.safeTransfer(address(_rewardToken), user, amount);
-        emit SentRewards(user, amount);
+        require(canClaim(user, token), "ABOAT::sendReward: Can't claim more than once per day");
+        _claimTimes[user][token] = block.timestamp;
+        if(address(_rewardToken) != token) {
+            uint256 feeAmount = amount.mul(thirdPartyFee).div(100);
+            uint256 userAmount = amount.sub(feeAmount);
+            if(token == address(0)) {
+                TransferHelper.safeTransferETH(owner(), feeAmount);
+                TransferHelper.safeTransferETH(user, userAmount);
+            } else {
+                TransferHelper.safeTransfer(token, owner(), feeAmount);
+                TransferHelper.safeTransfer(token, user, userAmount);
+            }
+        } else {
+            require(amount > fee, "ABOAT::sendReward");
+            amount = amount.sub(fee);
+            uint256 userEth = address(this).balance;
+            swapTokensForEth(fee);
+            TransferHelper.safeTransferETH(address(owner()), address(this).balance.sub(userEth));
+            TransferHelper.safeTransfer(address(_rewardToken), user, amount);
+        }
+        emit SentRewards(user, amount, token);
     }
     
     function sendRewardAsEth(uint256 amount, address user) public onlyOwner {
         require(address(_router) != address(0), "ABOAT::sendRewardsAsEth: There is no router defined to swap tokens for eth");
-        require(amount <= getBalance(), "ABOAT::sendRewardsAsEth: Can't send more rewards than in reward system!");
+        require(amount <= getBalance(address(_rewardToken)), "ABOAT::sendRewardsAsEth: Can't send more rewards than in reward system!");
         require(amount <= _maxAmountPerReceive, "ABOAT::sendRewardsAsEth: Can't send more rewards than limit!");
-        require(canClaim(user), "ABOAT::sendRewardsAsEth: Can't claim more than once per day");
-        _claimTimes[user] = block.timestamp;
+        require(canClaim(user, address(_rewardToken)), "ABOAT::sendRewardsAsEth: Can't claim more than once per day");
+        _claimTimes[user][address(_rewardToken)] = block.timestamp;
         uint256 ethBefore = address(this).balance;
         swapTokensForEth(amount);
         uint256 userEth = address(this).balance.sub(ethBefore);
-        uint256 fee = userEth.div(nativeSwapFee);
+        uint256 fee = userEth.mul(nativeSwapFee).div(100);
         userEth = userEth.sub(fee);
         TransferHelper.safeTransferETH(address(owner()), fee);
         TransferHelper.safeTransferETH(user, userEth);
@@ -158,5 +176,13 @@ contract RewardSystem is Ownable, TimeLock {
             address(this),
             block.timestamp
         );
+    }
+
+    function claim() public payable {
+        require(!_paidFee[msg.sender], "ABOAT::claim: Already allowed to recieve tokens");
+        require(msg.value >= _gasCost, "ABOAT::claim: Amount of bnb to claim should carry the cost to add the claimable");
+        TransferHelper.safeTransferETH(owner(), msg.value);
+        _paidFee[msg.sender] = true;
+        emit EnabledRewards(msg.sender);
     }
 }

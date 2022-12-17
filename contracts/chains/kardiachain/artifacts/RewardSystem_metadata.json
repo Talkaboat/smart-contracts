@@ -41,6 +41,25 @@
 					{
 						"indexed": true,
 						"internalType": "uint256",
+						"name": "previousGas",
+						"type": "uint256"
+					},
+					{
+						"indexed": true,
+						"internalType": "uint256",
+						"name": "gas",
+						"type": "uint256"
+					}
+				],
+				"name": "ChangedGasCost",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": true,
+						"internalType": "uint256",
 						"name": "previousAmount",
 						"type": "uint256"
 					},
@@ -60,25 +79,6 @@
 					{
 						"indexed": true,
 						"internalType": "address",
-						"name": "previousAddress",
-						"type": "address"
-					},
-					{
-						"indexed": true,
-						"internalType": "address",
-						"name": "newAddress",
-						"type": "address"
-					}
-				],
-				"name": "ChangedOracleWallet",
-				"type": "event"
-			},
-			{
-				"anonymous": false,
-				"inputs": [
-					{
-						"indexed": true,
-						"internalType": "address",
 						"name": "previousToken",
 						"type": "address"
 					},
@@ -90,6 +90,25 @@
 					}
 				],
 				"name": "ChangedRewardToken",
+				"type": "event"
+			},
+			{
+				"anonymous": false,
+				"inputs": [
+					{
+						"indexed": true,
+						"internalType": "uint256",
+						"name": "previousFee",
+						"type": "uint256"
+					},
+					{
+						"indexed": true,
+						"internalType": "uint256",
+						"name": "fee",
+						"type": "uint256"
+					}
+				],
+				"name": "ChangedThirdPartyFee",
 				"type": "event"
 			},
 			{
@@ -176,6 +195,12 @@
 						"internalType": "uint256",
 						"name": "amount",
 						"type": "uint256"
+					},
+					{
+						"indexed": true,
+						"internalType": "address",
+						"name": "token",
+						"type": "address"
 					}
 				],
 				"name": "SentRewards",
@@ -231,6 +256,11 @@
 						"internalType": "address",
 						"name": "",
 						"type": "address"
+					},
+					{
+						"internalType": "address",
+						"name": "",
+						"type": "address"
 					}
 				],
 				"name": "_claimTimes",
@@ -246,12 +276,12 @@
 			},
 			{
 				"inputs": [],
-				"name": "_devWallet",
+				"name": "_gasCost",
 				"outputs": [
 					{
-						"internalType": "address",
+						"internalType": "uint256",
 						"name": "",
-						"type": "address"
+						"type": "uint256"
 					}
 				],
 				"stateMutability": "view",
@@ -271,13 +301,19 @@
 				"type": "function"
 			},
 			{
-				"inputs": [],
-				"name": "_oracleWallet",
-				"outputs": [
+				"inputs": [
 					{
 						"internalType": "address",
 						"name": "",
 						"type": "address"
+					}
+				],
+				"name": "_paidFee",
+				"outputs": [
+					{
+						"internalType": "bool",
+						"name": "",
+						"type": "bool"
 					}
 				],
 				"stateMutability": "view",
@@ -373,6 +409,11 @@
 						"internalType": "address",
 						"name": "user",
 						"type": "address"
+					},
+					{
+						"internalType": "address",
+						"name": "token",
+						"type": "address"
 					}
 				],
 				"name": "canClaim",
@@ -402,25 +443,44 @@
 			{
 				"inputs": [
 					{
-						"internalType": "address",
-						"name": "oracleWallet",
-						"type": "address"
+						"internalType": "uint256",
+						"name": "newFee",
+						"type": "uint256"
 					}
 				],
-				"name": "changeOracleWallet",
+				"name": "changeThirdPartyFee",
 				"outputs": [],
 				"stateMutability": "nonpayable",
 				"type": "function"
 			},
 			{
 				"inputs": [],
+				"name": "claim",
+				"outputs": [],
+				"stateMutability": "payable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "token",
+						"type": "address"
+					}
+				],
 				"name": "emergencyWithdraw",
 				"outputs": [],
 				"stateMutability": "nonpayable",
 				"type": "function"
 			},
 			{
-				"inputs": [],
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "token",
+						"type": "address"
+					}
+				],
 				"name": "getBalance",
 				"outputs": [
 					{
@@ -551,6 +611,11 @@
 						"internalType": "uint256",
 						"name": "fee",
 						"type": "uint256"
+					},
+					{
+						"internalType": "address",
+						"name": "token",
+						"type": "address"
 					}
 				],
 				"name": "sendRewards",
@@ -589,6 +654,19 @@
 				"name": "setTimelockEnabled",
 				"outputs": [],
 				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "thirdPartyFee",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
 				"type": "function"
 			},
 			{
@@ -762,11 +840,11 @@
 			]
 		},
 		"contracts/chains/kardiachain/RewardSystem.sol": {
-			"keccak256": "0x3af8c91f4e93f5d864c2265ec9451b2594c30aa1b13b4e254031cc2fedda3d70",
+			"keccak256": "0x5dce064118ce7f6a7c34c7d4ca5da34bbd4d268e2d9c0cbe9ad8254b84ba81c6",
 			"license": "GPL-3.0",
 			"urls": [
-				"bzz-raw://027381e0581cf9e64584a2a56d11e9d4652c334c3f5b26945d470a5f43409461",
-				"dweb:/ipfs/QmWazYP2LPoevmTcWN2n6vSdA95c5czEQPDy5qdzTQacQz"
+				"bzz-raw://af8938383c1aa3e4c0c90fb538c286fbfb5e23bde73b6d66c336501a42d48604",
+				"dweb:/ipfs/QmeSSxzFKxPDzAZjK9pBnj8odNhquxfwK1GvjjmDJ5217a"
 			]
 		},
 		"contracts/chains/kardiachain/interfaces/IKaiDexRouter.sol": {
