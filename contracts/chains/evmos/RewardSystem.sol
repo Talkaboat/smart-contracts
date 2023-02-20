@@ -150,6 +150,8 @@ contract RewardSystem is Ownable, TimeLock {
         TransferHelper.safeTransferETH(user, userEth);
         emit SentRewardsETH(user, userEth, fee);
     }
+
+    
     
     function swapTokensForEth(uint256 tokenAmount) private {
         // generate the Enodi pair path of token -> weth

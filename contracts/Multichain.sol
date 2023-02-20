@@ -25,7 +25,7 @@ contract Multichain is Ownable, ReentrancyGuard{
     }
 
     mapping(uint256 => Transfer) incomingTransfers;
-    mapping(uint256 => Transfer) outgoingTransfers;
+    mapping(uint16 => mapping(uint256 => Transfer)) outgoingTransfers; //chain => ref swap id => transfer data
 
     event InitChainTransfer(uint16 targetChain, uint256 amount, address user);
     event CompleteChainTransfer(uint16 originalChain, uint256 amount, address user, uint256 originalSwapId);
@@ -45,9 +45,9 @@ contract Multichain is Ownable, ReentrancyGuard{
     }
 
     function transferOut(uint256 amount, uint16 chainId, uint256 originalSwapId, address user) public onlyOwner {
-        require(outgoingTransfers[originalSwapId].RefSwapId != originalSwapId, "ABOAT::ERROR: Swap is already completed!");
+        require(outgoingTransfers[chainId][originalSwapId].RefSwapId != originalSwapId, "ABOAT::ERROR: Swap is already completed!");
         Transfer memory transfer = Transfer(chainId, amount, user, block.timestamp, originalSwapId);
-        outgoingTransfers[originalSwapId] = transfer;
+        outgoingTransfers[chainId][originalSwapId] = transfer;
         TransferHelper.safeTransfer(address(_token), user, amount);
         emit CompleteChainTransfer(chainId, amount, user, originalSwapId);
     }

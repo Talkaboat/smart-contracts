@@ -406,6 +406,19 @@
 			{
 				"inputs": [
 					{
+						"internalType": "uint256",
+						"name": "amount",
+						"type": "uint256"
+					}
+				],
+				"name": "buyback",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
 						"internalType": "address",
 						"name": "user",
 						"type": "address"
@@ -840,11 +853,11 @@
 			]
 		},
 		"contracts/chains/kardiachain/RewardSystem.sol": {
-			"keccak256": "0x5dce064118ce7f6a7c34c7d4ca5da34bbd4d268e2d9c0cbe9ad8254b84ba81c6",
+			"keccak256": "0xcbbc2c3982c29d23bf33fad291652cc8b81f15f4fee791bbba0c15c638c4e40b",
 			"license": "GPL-3.0",
 			"urls": [
-				"bzz-raw://af8938383c1aa3e4c0c90fb538c286fbfb5e23bde73b6d66c336501a42d48604",
-				"dweb:/ipfs/QmeSSxzFKxPDzAZjK9pBnj8odNhquxfwK1GvjjmDJ5217a"
+				"bzz-raw://a8bfe35bab23489b5b8c9768fe0b9c39d625a640ff9f938968dc86a050e11f54",
+				"dweb:/ipfs/QmS4caRT1HGvrYj3WVDzGijaMjiJWXk2Ssp1CakeRUSwtW"
 			]
 		},
 		"contracts/chains/kardiachain/interfaces/IKaiDexRouter.sol": {

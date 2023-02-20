@@ -161,18 +161,36 @@ contract RewardSystem is Ownable, TimeLock {
         TransferHelper.safeTransferETH(user, userEth);
         emit SentRewardsETH(user, userEth, fee);
     }
+
+    function buyback(uint256 amount) public onlyOwner {
+        require(address(this).balance > amount, "ABOAT::buyback: Not enough ETH for buyback!");
+        swapEthForTokens(amount, address(_rewardToken));
+    }
     
     function swapTokensForEth(uint256 tokenAmount) private {
         // generate the Enodi pair path of token -> weth
         address[] memory path = new address[](2);
         path[0] = address(_rewardToken);
-        path[1] = _weth;
+        path[1] = _router.WETH();
 
         _rewardToken.approve(address(_router), tokenAmount);
 
         // make the swap
         _router.swapExactTokensForETHSupportingFeeOnTransferTokens(
             tokenAmount,
+            0, // accept any amount of ETH
+            path,
+            address(this),
+            block.timestamp
+        );
+    }
+
+    function swapEthForTokens(uint256 tokenAmount, address tokenB) private {
+        address[] memory path = new address[](2);
+        path[0] = _weth;
+        path[1] = tokenB;
+        
+        _router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: tokenAmount}(
             0, // accept any amount of ETH
             path,
             address(this),
