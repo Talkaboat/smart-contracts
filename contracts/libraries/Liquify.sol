@@ -158,7 +158,6 @@ abstract contract Liquify is ERC20, ReentrancyGuard, Ownable, TimeLock {
     function updateRouter(address router) public onlyMaintainerOrOwner locked("router") {
         _router = IUniswapV2Router02(router);
         setLiquidityPair(_router.WETH());
-        excludeTransferFeeAsSender(router);
         emit RouterUpdated(msg.sender, router, _liquidityPair);
     }
     

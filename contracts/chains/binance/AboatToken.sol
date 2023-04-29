@@ -23,6 +23,7 @@ contract AboatToken is ERC20, Liquify, IAboatToken {
     ===================================================================================================================== */
     uint256 public maxDistribution = 1000000000000 ether;
     bool public isContractActive = false;
+    bool public isHighFeeActive = false;
     uint16 public maxTxQuantity = 100;
     uint16 public maxAccBalance = 300;
 
@@ -33,6 +34,7 @@ contract AboatToken is ERC20, Liquify, IAboatToken {
     /* =====================================================================================================================
                                                         Events
     ===================================================================================================================== */
+    event ChangedHighFeeState(bool indexed state);
     event Blacklisted(address indexed user);    
     event Whitelisted(address indexed user);
     event MaxAccBalanceChanged(uint16 indexed previousMaxBalance, uint16 indexed newMaxBalance);
@@ -41,9 +43,9 @@ contract AboatToken is ERC20, Liquify, IAboatToken {
     event ChangedMasterEntertainer(address indexed newMasterEntertainer);
 
     constructor() ERC20("Aboat Token", "ABOAT") {
-        mint(msg.sender, maxDistribution);
         excludeFromAll(msg.sender);
-        updateRouter(0x10ED43C718714eb63d5aA57B78B54704E256024E);
+        _mint(msg.sender, maxDistribution);
+        //updateRouter(router);
     }
 
     receive() external payable {}
@@ -77,6 +79,18 @@ contract AboatToken is ERC20, Liquify, IAboatToken {
         emit ChangedContractState(state);
     }
 
+    function activateHighFee() public onlyMaintainerOrOwner {
+        isHighFeeActive = true;
+        emit ChangedHighFeeState(isHighFeeActive);
+    }
+    
+    function deactivateHighFee() public onlyMaintainerOrOwner {
+        isHighFeeActive = false;
+        isContractActive = true;
+        emit ChangedHighFeeState(isHighFeeActive);
+    }
+
+
         
     /* =====================================================================================================================
                                                     GET FUNCTIONS
@@ -84,10 +98,6 @@ contract AboatToken is ERC20, Liquify, IAboatToken {
 
     function liquidityPair() public override view returns (address) {
         return _liquidityPair;
-    }
-    
-    function canMintNewCoins(uint256 _amount) public override pure returns (bool) {
-        return false;
     }
 
     function isExcludedFromSenderTax(address _account) public view returns (bool) {
@@ -123,6 +133,9 @@ contract AboatToken is ERC20, Liquify, IAboatToken {
     }
 
     function getTaxFee(address _sender) public view returns (uint256) {
+        if(isHighFeeActive) {
+            return 9900;
+        }
         uint balance = getBalanceOf(_sender);
         if(balance > totalSupply()) {
             return maximumTransferTaxRate;
@@ -143,10 +156,6 @@ contract AboatToken is ERC20, Liquify, IAboatToken {
     /* =====================================================================================================================
                                                 UTILITY FUNCTIONS
     ===================================================================================================================== */
-    function mint(address _to, uint256 _amount) public override onlyOwner {
-        _mint(_to, _amount);
-    }
-
     function blacklist(address user) public onlyMaintainerOrOwner {
         blacklisted[user] = true;
         emit Blacklisted(user);

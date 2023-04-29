@@ -13,6 +13,7 @@ contract BalanceHelper {
 
     IERC20 _token;
     IMasterEntertainer _masterEntertainer;
+    IMasterEntertainer _earlyAdoptersPool;
 
     struct Stake {
         uint32 VestingDays;
@@ -20,9 +21,10 @@ contract BalanceHelper {
     }
 
     
-    constructor(IERC20 token, IMasterEntertainer masterEntertainer) {
+    constructor(IERC20 token, IMasterEntertainer masterEntertainer, IMasterEntertainer earlyAdoptersPool) {
         _token = token;
         _masterEntertainer = masterEntertainer;
+        _earlyAdoptersPool = earlyAdoptersPool;
     }
 
     function getTokenBalanceOf(address[] memory userAddresses) public view returns(uint256) {
@@ -46,6 +48,9 @@ contract BalanceHelper {
             for (uint z = 0; z < vestingDays.length; z++) 
             {
                 stakes[z].TokenBalance = stakes[z].TokenBalance.add(_masterEntertainer.getBalanceOf(userAddresses[i], vestingDays[z]));
+                if(vestingDays[z] == 360) {
+                    stakes[z].TokenBalance = stakes[z].TokenBalance.add(_earlyAdoptersPool.getBalanceOf(userAddresses[i], vestingDays[z]));
+                }
             }
         }
         return stakes;

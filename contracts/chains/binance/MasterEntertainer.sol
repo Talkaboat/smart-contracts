@@ -93,11 +93,16 @@ contract MasterEntertainer is Ownable, ReentrancyGuard, PriceTicker, IMasterEnte
         feeAddress = _feeAddress;
         coinPerBlock = 2000 ether;
         startBlock = _startBlock;
+        IERC20 pair = IERC20(coin.liquidityPair());
         //alloc point, lp token, pool id, deposit fee, contractor, lock period in days, update pool
         add(100, IERC20(_coin), 0, 400, IMasterChefContractor(address(0)), 30, true, false);
         add(150, IERC20(_coin), 0, 300, IMasterChefContractor(address(0)), 90, true, false);
         add(250, IERC20(_coin), 0, 200, IMasterChefContractor(address(0)), 180, true, false);
         add(400, IERC20(_coin), 0, 100, IMasterChefContractor(address(0)), 360, true, false);
+        add(150, pair, 0, 400, IMasterChefContractor(address(0)), 30, true, false);
+        add(250, pair, 0, 300, IMasterChefContractor(address(0)), 90, true, false);
+        add(400, pair, 0, 200, IMasterChefContractor(address(0)), 180, true, false);
+        add(600, pair, 0, 100, IMasterChefContractor(address(0)), 360, true, false);
         setTimelockEnabled();
     }  
 
